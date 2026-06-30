@@ -10,6 +10,7 @@ This document serves as the developer playbook and learnings log for the Direct 
 1. **File Size Limit:** Keep all compiler files under 250 Lines of Code (LOC) to enforce high cohesion and simple components.
 2. **Red/Green TDD:** Every compiler feature (e.g. adding a new primitive mapping) must be preceded by a test case asserting the output of that feature in a Wasm engine.
 3. **Rust Compiler Design:** Place codegen logic in `compiler-core/src/wasm.rs` (or a dedicated subdirectory) and avoid mixing logic with Erlang or JavaScript targets to keep coupling minimal.
+4. **Remote Syncing & Publishing:** The official remote repository is set up at `https://github.com/moneyacademyKE/gleamwasm`. To keep remote history clean, ensure any temporary or local development folders (like `.commandcode/` or `.vscode/`) are kept inside `.gitignore`.
 
 ### Build and Test Command Reference:
 * To compile Gleam to Wasm:
