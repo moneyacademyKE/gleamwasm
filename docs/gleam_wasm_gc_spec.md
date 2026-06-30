@@ -21,6 +21,8 @@ To maintain modularity and comply with the codebase line limit guidelines (<250 
 4. **[Roadmap & Verification Plan](file:///Users/moe/Desktop/gleamwasm/docs/spec_verification_roadmap.md)**
    * Integration testing harness using Red/Green TDD.
    * Binary size optimizations (`wasm-opt`) and performance targets.
+5. **[Remaining Gaps Analysis (v2)](file:///Users/moe/Desktop/gleamwasm/docs/gap_analysis_v2.md)**
+   * Evaluates closure dispatch, linear memory GC, source parser integration, and concurrency emulation.
 
 ---
 

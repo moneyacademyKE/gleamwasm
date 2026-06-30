@@ -29,3 +29,6 @@ This document serves as the developer playbook and learnings log for the Direct 
 * **Structural Subtyping:** Wasm GC’s native subtyping `(sub)` is highly effective for representing polymorphic types and tagged unions. Relying on `br_on_cast` yields significantly faster pattern matching than implementing custom ID tags.
 * **Immediate vs. Allocated References:** Use `i31ref` for integers and boolean values when coercing to `anyref`. Tagging a small integer avoids heap allocation overhead completely.
 * **JS String Builtins:** Using `externref` combined with `wasm:js-string` imports is the optimal way to handle strings on the web. It avoids the double-copy bottleneck of decoding text from linear memory.
+* **Dual-Target Selection:** Emitting Wasm GC structs when possible avoids runtime allocation overhead, but supporting a linear fallback allows deployment on MVP-only environments (e.g. Cloudflare Workers). Decoupling AST from codegen backend makes dual-target compilation feasible.
+* **Pre-emission Validation:** Validating Wasm module structure before binary emission prevents obscure "unknown opcode" or type section errors at runtime/deploy time, accelerating development loop and ensuring spec compliance.
+

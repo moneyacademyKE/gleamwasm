@@ -25,3 +25,12 @@ This document records the design and architectural decisions made for the Direct
 * **Context:** Gleam custom types (ADTs) have multiple variants that must be instantiated and pattern-matched at runtime.
 * **Decision:** Map Gleam custom types to Wasm GC structs using inheritance/subtyping: a base struct type represents the ADT, and variant struct types declare the base type as their supertype. Perform pattern matching using native instructions (`ref.test` and `br_on_cast`).
 * **Consequences:** Leverages host VM type information and avoids dynamic tag comparisons.
+
+---
+
+## [ADR-004] Higher-Order Function Dispatch via Table Section
+* **Status:** Proposed
+* **Context:** Functional programming in Gleam heavily relies on passing closures and anonymous functions.
+* **Decision:** Implement a global Wasm function table (`funcref`) populated via element sections. Closures will be represented as a Wasm GC struct containing the function index (i32) and the captured environment payload. Higher-order functions will use `call_indirect` to dispatch.
+* **Consequences:** Resolves closure execution limits, enabling idiomatic use of `List::map`, `filter`, and callbacks in Lustre apps.
+
