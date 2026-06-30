@@ -1,0 +1,19 @@
+---
+source: crates/gleam-wasm/tests/snapshots.rs
+expression: wat
+---
+(module
+  (type $Bool (sub (struct))
+  (type $True (sub $Bool) (struct))
+  (type $False (sub $Bool) (struct))
+  (type $Option (sub (struct))
+  (type $Some (sub $Option) (struct (field $value (ref null any))))
+  (type $None_ (sub $Option) (struct))
+  (type $Result (sub (struct))
+  (type $Ok (sub $Result) (struct (field $value i64)))
+  (type $Err (sub $Result) (struct (field $error i64)))
+  (type $List (sub (struct))
+  (type $Cons (sub $List) (struct (field $head (ref null any)) (field $tail (ref null struct))))
+  (type $Nil (sub $List) (struct))
+  (type $Tuple2 (sub (struct (field $f0 (ref null any)) (field $f1 (ref null any))))
+)

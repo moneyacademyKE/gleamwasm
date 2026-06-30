@@ -1,0 +1,12 @@
+[tool.tarpaulin]
+skip-clean = true
+out = ["Html", "Lcov"]
+output-dir = "target/tarpaulin"
+fail-under = 70
+features = ""
+all-features = false
+no-default-features = false
+exclude-files = [
+    "tests/*",
+    "src/main.rs",
+]

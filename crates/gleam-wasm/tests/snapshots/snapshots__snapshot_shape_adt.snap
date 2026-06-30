@@ -1,0 +1,9 @@
+---
+source: crates/gleam-wasm/tests/snapshots.rs
+expression: wat
+---
+(module
+  (type $Shape (sub (struct))
+  (type $Circle (sub $Shape) (struct (field $radius f64)))
+  (type $Rect (sub $Shape) (struct (field $width f64) (field $height f64)))
+)
