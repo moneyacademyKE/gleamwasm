@@ -37,14 +37,18 @@ pub enum Target {
 }
 
 fn build_module(input: &str, output: &str, target: Target, emit_wat: bool) -> Result<(), String> {
-    use crate::codegen::{compile_module_with_opt, compile_to_linear, GleamModule};
+    use crate::codegen::{compile_module_with_opt, compile_to_linear};
     use crate::emit::emit_wasm;
 
     let module_def = if input.ends_with(".gleam") {
-        let source = std::fs::read_to_string(input)
-            .map_err(|e| format!("failed to read {input}: {e}"))?;
-        crate::parse::parse_module(&source)
-            .map_err(|e| format!("parse error at line {} col {}: {}", e.line, e.col, e.message))?
+        let source =
+            std::fs::read_to_string(input).map_err(|e| format!("failed to read {input}: {e}"))?;
+        crate::parse::parse_module(&source).map_err(|e| {
+            format!(
+                "parse error at line {} col {}: {}",
+                e.line, e.col, e.message
+            )
+        })?
     } else {
         // Default to empty module for test/development paths
         crate::codegen::GleamModule {

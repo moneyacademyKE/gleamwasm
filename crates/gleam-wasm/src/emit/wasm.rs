@@ -196,8 +196,7 @@ fn encode_valtype(buf: &mut Vec<u8>, vt: &ValType) {
             buf.push(0x6F); // externref
         }
         ValType::Ref(RefType::RefNull(HeapType::Abstract(AbstractHeapType::None_))) => {
-            buf.push(0x70); // anyref → fallback
-            buf.push(0x71); // nullref → fallback
+            buf.push(0x71); // nullref fallback
         }
         ValType::Ref(_) => {
             buf.push(0x6F); // externref fallback

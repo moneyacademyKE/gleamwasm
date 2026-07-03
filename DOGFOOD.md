@@ -10,6 +10,8 @@ Real Gleam applications compiled to Cloudflare WASM and verified on local wrangl
 | BEAM Gleam CMS | 4 CRUD endpoints | ~80 | 270 bytes | 0 JS | ✅ Wrangler verified |
 | GleamUnison CF | 12 JS FFI stubs | 4,271 | ~3KB | 12 JS | ✅ Wrangler verified |
 | GleamUnison SC | Self-contained (zero JS) | 4,271 | ~3KB | 0 JS | ✅ Wrangler verified |
+| Generated Stress Suite | 5 apps, 8→128 stage functions | generated | 675B→15.9KB | 0 JS | ✅ wasm-web + CF verified |
+| Desktop GleamUnison util + harness | real util module + compatible harness | mixed | 103B→1.3KB | 0 JS | ✅ wasm-web + CF verified |
 
 ## Lustre Counter (dogfooding/lustre-counter)
 
@@ -81,10 +83,42 @@ See `dogfooding/gleamunison/ANALYSIS.md` for full architecture analysis.
 - **Signed LEB128 encoding** — `I32Const(-1)` was 5 bytes, now 1 byte
 - **One-armed if validation** — Binary encoder emits correct blocktype
 - **Runtime i64 types** — Linear target uses i32-only for CF compatibility
+- **Function index registration** — GC target inter-function calls now resolve to the intended function
+- **Linear target calls** — CF target normal and tail calls now resolve through a function map instead of `unreachable` or first-function fallback
+- **Local allocation** — `let` locals now allocate after params and survive shadowing
+- **Parser sequencing** — Multiple source-level `let` statements fold into the correct expression chain
+- **Parser list literals** — Normal `[a, b, c]` literals parse directly
+- **Generic return annotations** — Return types such as `-> List(Int)` are skipped correctly by the lightweight parser
+- **Manual nullref encoding** — Nullable `none` reference fallback emits a single value-type byte
+
+## v0.2.0 Dogfood Additions
+
+### Generated stress suite
+
+Five generated apps were compiled through both default and Cloudflare-compatible targets. Complexity scales from 8 to 128 stage functions, with nested lets, arithmetic, comparisons, cross-function calls, and list literals.
+
+| App | CF calls | CF WASM size | CF checks |
+|-----|---------:|-------------:|-----------|
+| app_01_x1 | 23 | 1,364 bytes | memory export, no GC markers |
+| app_02_x2 | 39 | 2,335 bytes | memory export, no GC markers |
+| app_03_x4 | 71 | 4,272 bytes | memory export, no GC markers |
+| app_04_x8 | 135 | 8,148 bytes | memory export, no GC markers |
+| app_05_x16 | 263 | 15,999 bytes | memory export, no GC markers |
+
+### Desktop GleamUnison
+
+The Desktop GleamUnison project was dogfooded from `/Users/moe/Desktop/gleamunison_dogfood/gleamunison_repo`.
+
+- Real source compiled: `src/gleamunison/util.gleam`
+- Harness compiled: `gleamunison_wasm_harness.gleam`
+- Both default and Cloudflare-compatible targets emitted valid Wasm headers
+- CF outputs export `memory`
+
+Full `src/gleamunison.gleam` still exceeds the lightweight source parser because the project uses advanced signatures, higher-order generic function types, FFI declarations, and broader Gleam syntax.
 
 ### Remaining:
-- **Gleam source parser integration** — Parse `.gleam` → TypedExpr (gleam-core dependency needed)
-- **List type support** — Lists need heap-allocated Cons cells
+- **Full Gleam source parser integration** — Current lightweight parser covers a useful subset; full Gleam still needs `gleam-core` or broader syntax support
+- **Complete list runtime semantics** — Source list literals parse, but runtime semantics need more coverage across both targets
 - **Full GleamUnison runtime** — 75 FFI calls need BEAM-equivalent adapters (hot code loading, concurrency, ETS)
 - **GleamUnison parser/compiler** — The 4,271 LOC core needs gleam-core to parse
 

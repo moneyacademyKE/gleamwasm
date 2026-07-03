@@ -18,17 +18,26 @@ pub struct FunctionContext {
     pub runtime_cons: u32,
     pub runtime_list_head: u32,
     pub runtime_list_tail: u32,
+    pub function_map: std::collections::BTreeMap<String, u32>,
 }
 
 impl FunctionContext {
     /// i32 temp register 0
-    fn t0(&self) -> u32 { self.local_offset }
+    fn t0(&self) -> u32 {
+        self.local_offset
+    }
     /// i32 temp register 1
-    fn t1(&self) -> u32 { self.local_offset + 1 }
+    fn t1(&self) -> u32 {
+        self.local_offset + 1
+    }
     /// i32 temp register 2
-    fn t2(&self) -> u32 { self.local_offset + 2 }
+    fn t2(&self) -> u32 {
+        self.local_offset + 2
+    }
     /// f64 temp register 0
-    fn ft0(&self) -> u32 { self.local_offset + 4 }
+    fn ft0(&self) -> u32 {
+        self.local_offset + 4
+    }
 }
 
 /// Compile a single TypedExpr to linear memory instructions.
@@ -54,7 +63,10 @@ fn compile_recursive(body: &mut Vec<Instr>, expr: &TypedExpr, ctx: &FunctionCont
             body.push(Instr::Call(ctx.runtime_alloc));
             body.push(Instr::LocalTee(ctx.ft0())); // save ptr in f64 temp slot
             body.push(Instr::F64Const(*f));
-            body.push(Instr::F64Store { offset: 0, align: 3 });
+            body.push(Instr::F64Store {
+                offset: 0,
+                align: 3,
+            });
             body.push(Instr::I32Const(1)); // tag 1 = Float
             body.push(Instr::LocalGet(ctx.ft0())); // payload = heap ptr
             body.push(Instr::Call(ctx.runtime_make_tagged));
@@ -73,7 +85,9 @@ fn compile_recursive(body: &mut Vec<Instr>, expr: &TypedExpr, ctx: &FunctionCont
             body.push(Instr::Call(ctx.runtime_nil));
         }
         TypedExpr::ListCons {
-            head, tail, type_: _,
+            head,
+            tail,
+            type_: _,
         } => {
             compile_recursive(body, head, ctx);
             compile_recursive(body, tail, ctx);
@@ -109,7 +123,10 @@ fn compile_recursive(body: &mut Vec<Instr>, expr: &TypedExpr, ctx: &FunctionCont
                     body.push(Instr::I32Const(8));
                     body.push(Instr::Call(ctx.runtime_alloc));
                     body.push(Instr::LocalTee(ctx.t0())); // save ptr
-                    body.push(Instr::F64Store { offset: 0, align: 3 });
+                    body.push(Instr::F64Store {
+                        offset: 0,
+                        align: 3,
+                    });
                     body.push(Instr::I32Const(1));
                     body.push(Instr::LocalGet(ctx.t0()));
                     body.push(Instr::Call(ctx.runtime_make_tagged));
@@ -162,18 +179,30 @@ fn compile_recursive(body: &mut Vec<Instr>, expr: &TypedExpr, ctx: &FunctionCont
             body.push(Instr::LocalSet(ctx.t2())); // let binding in temp
             compile_recursive(body, inner_body, ctx);
         }
-        TypedExpr::Call { .. } => {
-            body.push(Instr::Unreachable); // not supported in linear target yet
+        TypedExpr::Call { name, args, .. } => {
+            for arg in args {
+                compile_recursive(body, arg, ctx);
+            }
+            if let Some(func_idx) = ctx.function_map.get(name).copied() {
+                body.push(Instr::Call(func_idx));
+            } else {
+                body.push(Instr::Unreachable);
+            }
         }
         TypedExpr::TailCall {
+            name,
             args,
             type_: _,
-            ..
         } => {
             for arg in args {
                 compile_recursive(body, arg, ctx);
             }
-            body.push(Instr::ReturnCall(ctx.func_index_offset));
+            let func_idx = ctx
+                .function_map
+                .get(name)
+                .copied()
+                .unwrap_or(ctx.func_index_offset);
+            body.push(Instr::ReturnCall(func_idx));
         }
         TypedExpr::Match {
             scrutinee,
@@ -238,7 +267,10 @@ fn compile_linear_match(
 
 fn emit_unbox_float(body: &mut Vec<Instr>, ctx: &FunctionContext) {
     body.push(Instr::Call(ctx.runtime_get_payload));
-    body.push(Instr::F64Load { offset: 0, align: 3 });
+    body.push(Instr::F64Load {
+        offset: 0,
+        align: 3,
+    });
 }
 
 fn emit_binop_i32(body: &mut Vec<Instr>, op: &BinOp) {
@@ -292,6 +324,7 @@ mod tests {
             runtime_cons: 10,
             runtime_list_head: 11,
             runtime_list_tail: 12,
+            function_map: BTreeMap::new(),
         }
     }
 

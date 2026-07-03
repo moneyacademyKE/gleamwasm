@@ -32,7 +32,11 @@ pub struct CompileOutput {
     pub wasm: Option<Vec<u8>>,
 }
 
-pub fn compile_function(mapper: &mut TypeMapper, def: &GleamFunctionDef) -> IrFunction {
+pub fn compile_function(
+    mapper: &mut TypeMapper,
+    def: &GleamFunctionDef,
+    func_index: u32,
+) -> IrFunction {
     let func_type_idx = mapper.module_mut().add_func_type(FuncType {
         params: def.params.iter().map(|(_, t)| t.clone()).collect(),
         results: vec![def.return_type.clone()],
@@ -48,13 +52,13 @@ pub fn compile_function(mapper: &mut TypeMapper, def: &GleamFunctionDef) -> IrFu
         })
         .collect();
 
-    mapper.register_function(def.name.clone(), mapper.module().functions.len() as u32);
+    mapper.register_function(def.name.clone(), func_index);
 
     let func_local_count = def.params.len();
     let body_instrs = compile_expr(mapper, &def.body);
 
     let additional = mapper
-        .get_local_count()
+        .next_local_index()
         .saturating_sub(func_local_count as u32);
 
     for i in 0..additional {
@@ -143,7 +147,10 @@ fn preprocess_closures(
                 preprocess_closures(arg, closures, next_func_idx, mapper);
             }
         }
-        TypedExpr::StructNew { fields, .. } | TypedExpr::Tuple { elements: fields, .. } => {
+        TypedExpr::StructNew { fields, .. }
+        | TypedExpr::Tuple {
+            elements: fields, ..
+        } => {
             for field in fields {
                 preprocess_closures(field, closures, next_func_idx, mapper);
             }
@@ -156,7 +163,7 @@ fn preprocess_closures(
         } => {
             preprocess_closures(scrutinee, closures, next_func_idx, mapper);
             for case in cases {
-                preprocess_closures(&mut case.body.clone(), closures, next_func_idx, mapper);
+                preprocess_closures(&mut case.body, closures, next_func_idx, mapper);
             }
         }
         TypedExpr::ListCons { head, tail, .. } => {
@@ -168,10 +175,7 @@ fn preprocess_closures(
 }
 
 /// Compile a closure body as a standalone function.
-fn compile_closure_function(
-    mapper: &mut TypeMapper,
-    closure: &ClosureDef,
-) -> IrFunction {
+fn compile_closure_function(mapper: &mut TypeMapper, closure: &ClosureDef) -> IrFunction {
     let func_type_idx = closure.func_type_index;
 
     let mut locals: Vec<Local> = closure
@@ -193,7 +197,7 @@ fn compile_closure_function(
     let body_instrs = compile_expr(mapper, &closure.body);
 
     let additional = mapper
-        .get_local_count()
+        .next_local_index()
         .saturating_sub(func_local_count as u32);
 
     for i in 0..additional {
@@ -235,7 +239,12 @@ pub fn compile_module_with_opt(def: &GleamModule, target: Target) -> CompileOutp
 
     let mut preprocessed_functions: Vec<GleamFunctionDef> = def.functions.clone();
     for func in &mut preprocessed_functions {
-        preprocess_closures(&mut func.body, &mut all_closures, &mut next_func_idx, &mut mapper);
+        preprocess_closures(
+            &mut func.body,
+            &mut all_closures,
+            &mut next_func_idx,
+            &mut mapper,
+        );
     }
 
     // === Phase 2: Compile closure functions ===
@@ -253,8 +262,8 @@ pub fn compile_module_with_opt(def: &GleamModule, target: Target) -> CompileOutp
     mapper.clear_functions();
 
     let mut main_ir_funcs: Vec<IrFunction> = Vec::new();
-    for func in &preprocessed_functions {
-        let ir_func = compile_function(&mut mapper, func);
+    for (i, func) in preprocessed_functions.iter().enumerate() {
+        let ir_func = compile_function(&mut mapper, func, i as u32);
         main_ir_funcs.push(ir_func);
     }
 

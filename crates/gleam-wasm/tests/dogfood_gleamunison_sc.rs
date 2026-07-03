@@ -147,10 +147,7 @@ fn test_self_contained_full_deploy() {
             },
             GleamFunctionDef {
                 name: "range".into(),
-                params: vec![
-                    ("start".into(), ValType::I64),
-                    ("end".into(), ValType::I64),
-                ],
+                params: vec![("start".into(), ValType::I64), ("end".into(), ValType::I64)],
                 return_type: ValType::I64,
                 body: TypedExpr::If {
                     cond: Box::new(TypedExpr::BinOp {
@@ -240,7 +237,10 @@ fn test_self_contained_full_deploy() {
     fs::write(format!("{deploy_dir}/gleamunison_sc.wat"), &adapter.wat).unwrap();
 
     assert!(&wasm[0..4] == b"\0asm");
-    assert!(!adapter.wat.contains("(import"), "self-contained must have zero imports");
+    assert!(
+        !adapter.wat.contains("(import"),
+        "self-contained must have zero imports"
+    );
     assert!(adapter.wat.contains("\"local_var_index\""));
     assert!(adapter.wat.contains("\"range\""));
     assert!(adapter.wat.contains("\"hash\""));

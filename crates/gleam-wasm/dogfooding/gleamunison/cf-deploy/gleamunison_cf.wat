@@ -182,9 +182,9 @@ end
     local.get 2
     i32.add
   )
-  (export "local_var_index" (func 18))
-  (export "range" (func 19))
-  (export "hash" (func 20))
-  (export "level1" (func 21))
-  (export "state_demo" (func 22))
+  (export "local_var_index" (func 6))
+  (export "range" (func 7))
+  (export "hash" (func 8))
+  (export "level1" (func 9))
+  (export "state_demo" (func 10))
 )

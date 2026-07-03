@@ -147,3 +147,30 @@ fn test_compile_let_binding() {
     assert_eq!(body[3], Instr::I64Const(8));
     assert_eq!(body[4], Instr::I64Add);
 }
+
+#[test]
+fn test_compile_let_after_param_uses_next_local() {
+    use gleam_wasm::codegen::ast::TypedExpr;
+    use gleam_wasm::codegen::*;
+
+    let mut mapper = TypeMapper::new(gleam_wasm::Target::WasmWeb);
+    let func = GleamFunctionDef {
+        name: "use_let".into(),
+        params: vec![("x".into(), ValType::I64)],
+        return_type: ValType::I64,
+        body: TypedExpr::Let {
+            name: "y".into(),
+            value: Box::new(TypedExpr::Int(42)),
+            body: Box::new(TypedExpr::Var {
+                name: "y".into(),
+                type_: ValType::I64,
+            }),
+            type_: ValType::I64,
+        },
+    };
+
+    let ir_func = compile_function(&mut mapper, &func, 0);
+    assert_eq!(ir_func.body[0], Instr::I64Const(42));
+    assert_eq!(ir_func.body[1], Instr::LocalSet(1));
+    assert_eq!(ir_func.body[2], Instr::LocalGet(1));
+}

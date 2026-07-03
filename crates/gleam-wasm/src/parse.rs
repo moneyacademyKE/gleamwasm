@@ -43,7 +43,7 @@ pub fn parse_module(source: &str) -> Result<GleamModule, ParseError> {
             if matches!(peek(&tokens, pos), Some(Token::Arrow)) {
                 pos += 1; // skip ->
                 skip_whitespace(&tokens, &mut pos);
-                let _ = expect_ident(&tokens, &mut pos); // type name, ignore
+                skip_type_annotation(&tokens, &mut pos);
             }
 
             skip_whitespace(&tokens, &mut pos);
@@ -51,10 +51,7 @@ pub fn parse_module(source: &str) -> Result<GleamModule, ParseError> {
 
             functions.push(GleamFunctionDef {
                 name: name.clone(),
-                params: params
-                    .into_iter()
-                    .map(|p| (p, ValType::I64))
-                    .collect(),
+                params: params.into_iter().map(|p| (p, ValType::I64)).collect(),
                 return_type,
                 body,
             });
@@ -81,9 +78,7 @@ pub fn parse_module(source: &str) -> Result<GleamModule, ParseError> {
             skip_whitespace(&tokens, &mut pos);
         } else if matches!(peek(&tokens, pos), Some(Token::Import)) {
             // Skip imports for now
-            while pos < tokens.len()
-                && !matches!(tokens[pos], Token::Newline)
-            {
+            while pos < tokens.len() && !matches!(tokens[pos], Token::Newline) {
                 pos += 1;
             }
             skip_whitespace(&tokens, &mut pos);
@@ -98,6 +93,30 @@ pub fn parse_module(source: &str) -> Result<GleamModule, ParseError> {
         imports: vec![],
         adt_types: vec![],
     })
+}
+
+fn skip_type_annotation(tokens: &[Token], pos: &mut usize) {
+    let mut depth = 0usize;
+    while *pos < tokens.len() {
+        match peek(tokens, *pos) {
+            Some(Token::OpenBrace) if depth == 0 => break,
+            Some(Token::Comma) | Some(Token::CloseParen) if depth == 0 => break,
+            Some(Token::OpenParen) => {
+                depth += 1;
+                *pos += 1;
+            }
+            Some(Token::CloseParen) => {
+                if depth == 0 {
+                    break;
+                }
+                depth -= 1;
+                *pos += 1;
+            }
+            Some(Token::Newline) if depth == 0 => break,
+            Some(_) => *pos += 1,
+            None => break,
+        }
+    }
 }
 
 fn parse_param_list(tokens: &[Token], pos: &mut usize) -> Result<Vec<String>, ParseError> {
@@ -121,9 +140,7 @@ fn parse_param_list(tokens: &[Token], pos: &mut usize) -> Result<Vec<String>, Pa
             if matches!(peek(tokens, *pos), Some(Token::Colon)) {
                 *pos += 1; // skip ':'
                 skip_whitespace(tokens, pos);
-                if matches!(peek(tokens, *pos), Some(Token::Ident(_))) {
-                    *pos += 1; // skip type name
-                }
+                skip_type_annotation(tokens, pos);
             }
         }
 
@@ -157,17 +174,30 @@ fn parse_block(tokens: &[Token], pos: &mut usize) -> Result<TypedExpr, ParseErro
     }
     *pos += 1; // skip '}'
 
-    // Fold statements into a Let chain, last expression is the result
+    // Fold statements into a Let chain, last expression is the result.
     if statements.is_empty() {
         Ok(TypedExpr::Nil)
     } else {
         let mut body = statements.pop().unwrap();
         for stmt in statements.into_iter().rev() {
-            body = TypedExpr::Let {
-                name: "_".into(),
-                value: Box::new(stmt),
-                body: Box::new(body),
-                type_: ValType::I64,
+            body = match stmt {
+                TypedExpr::Let {
+                    name,
+                    value,
+                    body: stmt_body,
+                    type_,
+                } if matches!(*stmt_body, TypedExpr::Nil) => TypedExpr::Let {
+                    name,
+                    value,
+                    body: Box::new(body),
+                    type_,
+                },
+                other => TypedExpr::Let {
+                    name: "_".into(),
+                    value: Box::new(other),
+                    body: Box::new(body),
+                    type_: ValType::I64,
+                },
             };
         }
         Ok(body)
@@ -241,12 +271,12 @@ fn parse_statement(tokens: &[Token], pos: &mut usize) -> Result<TypedExpr, Parse
     }
 }
 
-fn do_let(
-    tokens: &[Token],
-    pos: &mut usize,
-    name: &str,
-) -> Result<TypedExpr, ParseError> {
-    let binding_name = if name == "_" { "_".to_string() } else { name.to_string() };
+fn do_let(tokens: &[Token], pos: &mut usize, name: &str) -> Result<TypedExpr, ParseError> {
+    let binding_name = if name == "_" {
+        "_".to_string()
+    } else {
+        name.to_string()
+    };
     *pos += 1;
     skip_whitespace(tokens, pos);
 
@@ -265,18 +295,10 @@ fn do_let(
     }
     skip_whitespace(tokens, pos);
     let value = parse_expression(tokens, pos)?;
-    // After = expr, look ahead for newline + continuation
-    skip_whitespace(tokens, pos);
-    let body = if *pos < tokens.len() && !matches!(tokens[*pos], Token::CloseBrace) {
-        parse_expression(tokens, pos)?
-    } else {
-        TypedExpr::Nil
-    };
-
     Ok(TypedExpr::Let {
         name: binding_name,
         value: Box::new(value),
-        body: Box::new(body),
+        body: Box::new(TypedExpr::Nil),
         type_: ValType::I64,
     })
 }
@@ -369,15 +391,10 @@ fn parse_primary(tokens: &[Token], pos: &mut usize) -> Result<TypedExpr, ParseEr
             *pos += 1;
             Ok(TypedExpr::Nil)
         }
+        Some(Token::OpenBracket) => parse_list_literal(tokens, pos),
         Some(Token::Ident(name)) => {
             let n = name.clone();
             *pos += 1;
-            // Check for list construction [head, ..tail]
-            skip_whitespace(tokens, pos);
-            if matches!(peek(tokens, *pos), Some(Token::OpenBracket)) {
-                // List literal: [1, 2, 3]
-                return parse_list_literal(tokens, pos, n);
-            }
             Ok(TypedExpr::Var {
                 name: n,
                 type_: ValType::I64,
@@ -392,21 +409,13 @@ fn parse_primary(tokens: &[Token], pos: &mut usize) -> Result<TypedExpr, ParseEr
             expect(tokens, pos, Token::CloseParen)?;
             Ok(inner)
         }
-        Some(Token::Case) => {
-            parse_case(tokens, pos)
-        }
-        Some(Token::Fn) => {
-            parse_closure(tokens, pos)
-        }
+        Some(Token::Case) => parse_case(tokens, pos),
+        Some(Token::Fn) => parse_closure(tokens, pos),
         _ => Err(error_at(*pos, "expected expression")),
     }
 }
 
-fn parse_list_literal(
-    tokens: &[Token],
-    pos: &mut usize,
-    _first: String,
-) -> Result<TypedExpr, ParseError> {
+fn parse_list_literal(tokens: &[Token], pos: &mut usize) -> Result<TypedExpr, ParseError> {
     // Handle list literal: [1, 2, 3] or [head, ..tail]
     *pos += 1; // skip '['
     skip_whitespace(tokens, pos);
@@ -600,14 +609,38 @@ fn tokenize(source: &str) -> Vec<Token> {
                     i += 1;
                 }
             }
-            '(' => { tokens.push(Token::OpenParen); i += 1; }
-            ')' => { tokens.push(Token::CloseParen); i += 1; }
-            '{' => { tokens.push(Token::OpenBrace); i += 1; }
-            '}' => { tokens.push(Token::CloseBrace); i += 1; }
-            '[' => { tokens.push(Token::OpenBracket); i += 1; }
-            ']' => { tokens.push(Token::CloseBracket); i += 1; }
-            ':' => { tokens.push(Token::Colon); i += 1; }
-            ',' => { tokens.push(Token::Comma); i += 1; }
+            '(' => {
+                tokens.push(Token::OpenParen);
+                i += 1;
+            }
+            ')' => {
+                tokens.push(Token::CloseParen);
+                i += 1;
+            }
+            '{' => {
+                tokens.push(Token::OpenBrace);
+                i += 1;
+            }
+            '}' => {
+                tokens.push(Token::CloseBrace);
+                i += 1;
+            }
+            '[' => {
+                tokens.push(Token::OpenBracket);
+                i += 1;
+            }
+            ']' => {
+                tokens.push(Token::CloseBracket);
+                i += 1;
+            }
+            ':' => {
+                tokens.push(Token::Colon);
+                i += 1;
+            }
+            ',' => {
+                tokens.push(Token::Comma);
+                i += 1;
+            }
             '=' => {
                 if i + 1 < chars.len() && chars[i + 1] == '=' {
                     tokens.push(Token::EqEq);
@@ -620,7 +653,10 @@ fn tokenize(source: &str) -> Vec<Token> {
                     i += 1;
                 }
             }
-            '+' => { tokens.push(Token::Plus); i += 1; }
+            '+' => {
+                tokens.push(Token::Plus);
+                i += 1;
+            }
             '-' => {
                 if i + 1 < chars.len() && chars[i + 1] == '>' {
                     tokens.push(Token::Arrow);
@@ -630,9 +666,18 @@ fn tokenize(source: &str) -> Vec<Token> {
                     i += 1;
                 }
             }
-            '*' => { tokens.push(Token::Star); i += 1; }
-            '/' => { tokens.push(Token::Slash); i += 1; }
-            '%' => { tokens.push(Token::Percent); i += 1; }
+            '*' => {
+                tokens.push(Token::Star);
+                i += 1;
+            }
+            '/' => {
+                tokens.push(Token::Slash);
+                i += 1;
+            }
+            '%' => {
+                tokens.push(Token::Percent);
+                i += 1;
+            }
             '!' => {
                 if i + 1 < chars.len() && chars[i + 1] == '=' {
                     tokens.push(Token::NotEq);
@@ -708,7 +753,9 @@ fn tokenize(source: &str) -> Vec<Token> {
                 }
                 i = next;
             }
-            c if c.is_alphabetic() || c == '_' && i + 1 < chars.len() && chars[i + 1].is_alphabetic() => {
+            c if c.is_alphabetic()
+                || c == '_' && i + 1 < chars.len() && chars[i + 1].is_alphabetic() =>
+            {
                 let (ident, next) = read_identifier(&chars, i);
                 let token = match ident.as_str() {
                     "fn" => Token::Fn,
@@ -729,7 +776,9 @@ fn tokenize(source: &str) -> Vec<Token> {
                 tokens.push(token);
                 i = next;
             }
-            _ => { i += 1; }
+            _ => {
+                i += 1;
+            }
         }
     }
     tokens
@@ -738,10 +787,7 @@ fn tokenize(source: &str) -> Vec<Token> {
 fn read_identifier(chars: &[char], start: usize) -> (String, usize) {
     let mut i = start;
     while i < chars.len()
-        && (chars[i].is_alphanumeric()
-            || chars[i] == '_'
-            || chars[i] == '?'
-            || chars[i] == '!')
+        && (chars[i].is_alphanumeric() || chars[i] == '_' || chars[i] == '?' || chars[i] == '!')
     {
         i += 1;
     }
@@ -754,7 +800,8 @@ fn read_number(chars: &[char], start: usize) -> (String, usize) {
     let mut has_dot = false;
     while i < chars.len()
         && (chars[i].is_ascii_digit()
-            || (chars[i] == '.' && !has_dot
+            || (chars[i] == '.'
+                && !has_dot
                 && i + 1 < chars.len()
                 && chars[i + 1].is_ascii_digit()))
     {

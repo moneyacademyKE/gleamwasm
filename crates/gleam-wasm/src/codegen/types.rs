@@ -154,6 +154,15 @@ impl TypeMapper {
         self.locals.len() as u32
     }
 
+    pub fn next_local_index(&self) -> u32 {
+        self.locals
+            .values()
+            .copied()
+            .max()
+            .map(|index| index + 1)
+            .unwrap_or(0)
+    }
+
     pub fn register_function(&mut self, name: String, index: u32) {
         self.functions.insert(name, index);
     }

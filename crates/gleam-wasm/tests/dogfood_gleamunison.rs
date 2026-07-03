@@ -53,10 +53,7 @@ fn test_gleamunison_range_base_case() {
     let module_def = GleamModule {
         functions: vec![GleamFunctionDef {
             name: "range".into(),
-            params: vec![
-                ("start".into(), ValType::I64),
-                ("end".into(), ValType::I64),
-            ],
+            params: vec![("start".into(), ValType::I64), ("end".into(), ValType::I64)],
             return_type: ValType::I64,
             body: TypedExpr::If {
                 cond: Box::new(TypedExpr::BinOp {
@@ -177,10 +174,7 @@ fn test_gleamunison_full_deploy() {
             },
             GleamFunctionDef {
                 name: "range".into(),
-                params: vec![
-                    ("start".into(), ValType::I64),
-                    ("end".into(), ValType::I64),
-                ],
+                params: vec![("start".into(), ValType::I64), ("end".into(), ValType::I64)],
                 return_type: ValType::I64,
                 body: TypedExpr::If {
                     cond: Box::new(TypedExpr::BinOp {

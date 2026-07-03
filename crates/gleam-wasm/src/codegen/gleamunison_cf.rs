@@ -1,9 +1,9 @@
+use crate::codegen::GleamModule;
 /// GleamUnison → Cloudflare Workers adapter layer.
 ///
 /// Maps the 75 GleamUnison `@external(erlang, ...)` FFI calls to Cloudflare
 /// Worker equivalents by compiling a WASM module that imports JS stubs.
 use crate::codegen::linear::FunctionContext;
-use crate::codegen::GleamModule;
 use crate::ir::module::{
     Export, ExportKind, FuncType, Function, Global, GlobalType, Import, ImportDesc, Memory, Module,
 };
@@ -59,9 +59,7 @@ pub fn compile_gleamunison(module_def: &GleamModule) -> GleamUnisonAdapter {
     module.imports.push(Import {
         module: "gleamunison".into(),
         name: "hex_to_bytes".into(),
-        desc: ImportDesc::Func {
-            type_index: hex_ty,
-        },
+        desc: ImportDesc::Func { type_index: hex_ty },
     });
 
     // Import 2: gleamunison_hash_equal(a_ptr: i32, a_len: i32, b_ptr: i32, b_len: i32) -> i32
@@ -72,9 +70,7 @@ pub fn compile_gleamunison(module_def: &GleamModule) -> GleamUnisonAdapter {
     module.imports.push(Import {
         module: "gleamunison".into(),
         name: "hash_equal".into(),
-        desc: ImportDesc::Func {
-            type_index: heq_ty,
-        },
+        desc: ImportDesc::Func { type_index: heq_ty },
     });
 
     // Import 3: gleamunison_hash_to_hex(ptr: i32, len: i32) -> i32 (returns ptr to hex string)
@@ -85,9 +81,7 @@ pub fn compile_gleamunison(module_def: &GleamModule) -> GleamUnisonAdapter {
     module.imports.push(Import {
         module: "gleamunison".into(),
         name: "hash_to_hex".into(),
-        desc: ImportDesc::Func {
-            type_index: h2h_ty,
-        },
+        desc: ImportDesc::Func { type_index: h2h_ty },
     });
 
     // Import 4: gleamunison_state_get(key_ptr: i32, key_len: i32) -> i32
@@ -105,12 +99,7 @@ pub fn compile_gleamunison(module_def: &GleamModule) -> GleamUnisonAdapter {
 
     // Import 5: gleamunison_state_set(key_ptr: i32, key_len: i32, val_ptr: i32, val_len: i32) -> i32
     let sset_ty = module.add_func_type(FuncType {
-        params: vec![
-            ValType::I32,
-            ValType::I32,
-            ValType::I32,
-            ValType::I32,
-        ],
+        params: vec![ValType::I32, ValType::I32, ValType::I32, ValType::I32],
         results: vec![ValType::I32],
     });
     module.imports.push(Import {
@@ -136,12 +125,7 @@ pub fn compile_gleamunison(module_def: &GleamModule) -> GleamUnisonAdapter {
 
     // Import 7: gleamunison_file_write(path_ptr: i32, path_len: i32, data_ptr: i32, data_len: i32) -> i32
     let fwrite_ty = module.add_func_type(FuncType {
-        params: vec![
-            ValType::I32,
-            ValType::I32,
-            ValType::I32,
-            ValType::I32,
-        ],
+        params: vec![ValType::I32, ValType::I32, ValType::I32, ValType::I32],
         results: vec![ValType::I32],
     });
     module.imports.push(Import {
@@ -160,9 +144,7 @@ pub fn compile_gleamunison(module_def: &GleamModule) -> GleamUnisonAdapter {
     module.imports.push(Import {
         module: "gleamunison".into(),
         name: "log".into(),
-        desc: ImportDesc::Func {
-            type_index: log_ty,
-        },
+        desc: ImportDesc::Func { type_index: log_ty },
     });
 
     // Import 9: gleamunison_now_ms() -> i64
@@ -173,9 +155,7 @@ pub fn compile_gleamunison(module_def: &GleamModule) -> GleamUnisonAdapter {
     module.imports.push(Import {
         module: "gleamunison".into(),
         name: "now_ms".into(),
-        desc: ImportDesc::Func {
-            type_index: now_ty,
-        },
+        desc: ImportDesc::Func { type_index: now_ty },
     });
 
     // Import 10: gleamunison_timestamp() -> i32
@@ -186,9 +166,7 @@ pub fn compile_gleamunison(module_def: &GleamModule) -> GleamUnisonAdapter {
     module.imports.push(Import {
         module: "gleamunison".into(),
         name: "timestamp".into(),
-        desc: ImportDesc::Func {
-            type_index: ts_ty,
-        },
+        desc: ImportDesc::Func { type_index: ts_ty },
     });
 
     // Import 11: gleamunison_eval(expr_ptr: i32, expr_len: i32) -> i32
@@ -271,10 +249,13 @@ pub fn compile_gleamunison(module_def: &GleamModule) -> GleamUnisonAdapter {
         name: Some("$get_tag".into()),
         type_index: gt_ty,
         locals: vec![Local::param("$ptr", ValType::I32)],
-        body: vec![Instr::LocalGet(0), Instr::I32Load {
-            offset: 0,
-            align: 2,
-        }],
+        body: vec![
+            Instr::LocalGet(0),
+            Instr::I32Load {
+                offset: 0,
+                align: 2,
+            },
+        ],
     });
 
     // runtime 3: get_payload(ptr: i32) -> i32
@@ -286,10 +267,13 @@ pub fn compile_gleamunison(module_def: &GleamModule) -> GleamUnisonAdapter {
         name: Some("$get_payload".into()),
         type_index: gp_ty,
         locals: vec![Local::param("$ptr", ValType::I32)],
-        body: vec![Instr::LocalGet(0), Instr::I32Load {
-            offset: 4,
-            align: 2,
-        }],
+        body: vec![
+            Instr::LocalGet(0),
+            Instr::I32Load {
+                offset: 4,
+                align: 2,
+            },
+        ],
     });
 
     // runtime 4: gleamunison_hash_wrapper(ptr: i32, len: i32) -> i32
@@ -325,8 +309,15 @@ pub fn compile_gleamunison(module_def: &GleamModule) -> GleamUnisonAdapter {
     // --- User functions ---
     let builtin_count = module.functions.len() as u32;
     let start_func_idx = builtin_count;
+    let function_map: BTreeMap<String, u32> = module_def
+        .functions
+        .iter()
+        .enumerate()
+        .map(|(i, func)| (func.name.clone(), start_func_idx + i as u32))
+        .collect();
 
-    for func in &module_def.functions {
+    for (i, func) in module_def.functions.iter().enumerate() {
+        let func_index = start_func_idx + i as u32;
         let func_type_idx = module.add_func_type(FuncType {
             params: vec![ValType::I32; func.params.len()],
             results: vec![ValType::I32],
@@ -348,6 +339,7 @@ pub fn compile_gleamunison(module_def: &GleamModule) -> GleamUnisonAdapter {
             runtime_cons: import_count + 7,
             runtime_list_head: import_count + 8,
             runtime_list_tail: import_count + 9,
+            function_map: function_map.clone(),
         };
         for (i, (name, _)) in func.params.iter().enumerate() {
             ctx.var_map.insert(name.clone(), i as u32);
@@ -376,7 +368,7 @@ pub fn compile_gleamunison(module_def: &GleamModule) -> GleamUnisonAdapter {
 
         module.exports.push(Export {
             name: func.name.clone(),
-            kind: ExportKind::Func(func_type_idx),
+            kind: ExportKind::Func(func_index),
         });
     }
 

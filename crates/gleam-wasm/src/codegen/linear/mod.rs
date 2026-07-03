@@ -8,7 +8,7 @@ use crate::ir::types::{Block, Instr, Local, ValType};
 
 mod expr;
 
-pub use expr::{compile_linear_expr, FunctionContext};
+pub use expr::{FunctionContext, compile_linear_expr};
 
 /// Build the linear memory runtime plus user functions.
 /// Returns (module, wat).
@@ -54,49 +54,62 @@ pub fn compile_to_linear(module_def: &GleamModule) -> (Module, String) {
         params: vec![ValType::I32],
         results: vec![ValType::I32],
     });
-    let mut alloc_body: Vec<Instr> = Vec::new();
-    // Try free list for 8-byte blocks
-    alloc_body.push(Instr::Block(Box::new(Block::new(vec![
+    let alloc_body: Vec<Instr> = vec![
+        // Try free list for 8-byte blocks
+        Instr::Block(Box::new(Block::new(
+            vec![
+                Instr::LocalGet(0),
+                Instr::I32Const(8),
+                Instr::I32Ne,
+                Instr::BrIf(0),
+                Instr::GlobalGet(1),
+                Instr::LocalTee(2),
+                Instr::I32Const(0),
+                Instr::I32Eq,
+                Instr::BrIf(0),
+                Instr::LocalGet(2),
+                Instr::I32Load {
+                    offset: 0,
+                    align: 2,
+                },
+                Instr::GlobalSet(1),
+                Instr::LocalGet(2),
+                Instr::Return,
+            ],
+            None,
+        ))),
+        // Try free list for 12-byte blocks
+        Instr::Block(Box::new(Block::new(
+            vec![
+                Instr::LocalGet(0),
+                Instr::I32Const(12),
+                Instr::I32Ne,
+                Instr::BrIf(0),
+                Instr::GlobalGet(2),
+                Instr::LocalTee(2),
+                Instr::I32Const(0),
+                Instr::I32Eq,
+                Instr::BrIf(0),
+                Instr::LocalGet(2),
+                Instr::I32Load {
+                    offset: 0,
+                    align: 2,
+                },
+                Instr::GlobalSet(2),
+                Instr::LocalGet(2),
+                Instr::Return,
+            ],
+            None,
+        ))),
+        // Bump allocate
+        Instr::GlobalGet(0),
+        Instr::LocalSet(1),
+        Instr::GlobalGet(0),
         Instr::LocalGet(0),
-        Instr::I32Const(8),
-        Instr::I32Ne,
-        Instr::BrIf(0),
-        Instr::GlobalGet(1),
-        Instr::LocalTee(2),
-        Instr::I32Const(0),
-        Instr::I32Eq,
-        Instr::BrIf(0),
-        Instr::LocalGet(2),
-        Instr::I32Load { offset: 0, align: 2 },
-        Instr::GlobalSet(1),
-        Instr::LocalGet(2),
-        Instr::Return,
-    ], None))));
-    // Try free list for 12-byte blocks
-    alloc_body.push(Instr::Block(Box::new(Block::new(vec![
-        Instr::LocalGet(0),
-        Instr::I32Const(12),
-        Instr::I32Ne,
-        Instr::BrIf(0),
-        Instr::GlobalGet(2),
-        Instr::LocalTee(2),
-        Instr::I32Const(0),
-        Instr::I32Eq,
-        Instr::BrIf(0),
-        Instr::LocalGet(2),
-        Instr::I32Load { offset: 0, align: 2 },
-        Instr::GlobalSet(2),
-        Instr::LocalGet(2),
-        Instr::Return,
-    ], None))));
-    // Bump allocate
-    alloc_body.push(Instr::GlobalGet(0));
-    alloc_body.push(Instr::LocalSet(1));
-    alloc_body.push(Instr::GlobalGet(0));
-    alloc_body.push(Instr::LocalGet(0));
-    alloc_body.push(Instr::I32Add);
-    alloc_body.push(Instr::GlobalSet(0));
-    alloc_body.push(Instr::LocalGet(1));
+        Instr::I32Add,
+        Instr::GlobalSet(0),
+        Instr::LocalGet(1),
+    ];
     module.functions.push(Function {
         name: Some("$alloc".into()),
         type_index: alloc_ty,
@@ -126,13 +139,19 @@ pub fn compile_to_linear(module_def: &GleamModule) -> (Module, String) {
             Instr::I32Const(8),
             Instr::I32Eq,
             Instr::If {
-                then_branch: Box::new(Block::new(vec![
-                    Instr::LocalGet(0),
-                    Instr::GlobalGet(1), // old head
-                    Instr::I32Store { offset: 0, align: 2 }, // ptr[0] = old head
-                    Instr::LocalGet(0),
-                    Instr::GlobalSet(1), // free8 = ptr
-                ], None)),
+                then_branch: Box::new(Block::new(
+                    vec![
+                        Instr::LocalGet(0),
+                        Instr::GlobalGet(1), // old head
+                        Instr::I32Store {
+                            offset: 0,
+                            align: 2,
+                        }, // ptr[0] = old head
+                        Instr::LocalGet(0),
+                        Instr::GlobalSet(1), // free8 = ptr
+                    ],
+                    None,
+                )),
                 else_branch: None,
             },
             // 12-byte blocks
@@ -140,13 +159,19 @@ pub fn compile_to_linear(module_def: &GleamModule) -> (Module, String) {
             Instr::I32Const(12),
             Instr::I32Eq,
             Instr::If {
-                then_branch: Box::new(Block::new(vec![
-                    Instr::LocalGet(0),
-                    Instr::GlobalGet(2), // old head
-                    Instr::I32Store { offset: 0, align: 2 }, // ptr[0] = old head
-                    Instr::LocalGet(0),
-                    Instr::GlobalSet(2), // free12 = ptr
-                ], None)),
+                then_branch: Box::new(Block::new(
+                    vec![
+                        Instr::LocalGet(0),
+                        Instr::GlobalGet(2), // old head
+                        Instr::I32Store {
+                            offset: 0,
+                            align: 2,
+                        }, // ptr[0] = old head
+                        Instr::LocalGet(0),
+                        Instr::GlobalSet(2), // free12 = ptr
+                    ],
+                    None,
+                )),
                 else_branch: None,
             },
         ],
@@ -193,10 +218,13 @@ pub fn compile_to_linear(module_def: &GleamModule) -> (Module, String) {
         name: Some("$get_tag".into()),
         type_index: get_tag_ty,
         locals: vec![Local::param("$ptr", ValType::I32)],
-        body: vec![Instr::LocalGet(0), Instr::I32Load {
-            offset: 0,
-            align: 2,
-        }],
+        body: vec![
+            Instr::LocalGet(0),
+            Instr::I32Load {
+                offset: 0,
+                align: 2,
+            },
+        ],
     });
 
     // 3: get_payload(ptr: i32) -> i32
@@ -208,10 +236,13 @@ pub fn compile_to_linear(module_def: &GleamModule) -> (Module, String) {
         name: Some("$get_payload".into()),
         type_index: get_payload_ty,
         locals: vec![Local::param("$ptr", ValType::I32)],
-        body: vec![Instr::LocalGet(0), Instr::I32Load {
-            offset: 4,
-            align: 2,
-        }],
+        body: vec![
+            Instr::LocalGet(0),
+            Instr::I32Load {
+                offset: 4,
+                align: 2,
+            },
+        ],
     });
 
     // --- List runtime builtins ---
@@ -256,16 +287,25 @@ pub fn compile_to_linear(module_def: &GleamModule) -> (Module, String) {
         ],
         body: vec![
             Instr::I32Const(12),
-            Instr::Call(0), // alloc(12)
+            Instr::Call(0),     // alloc(12)
             Instr::LocalTee(2), // $ptr
             Instr::I32Const(4), // Cons tag
-            Instr::I32Store { offset: 0, align: 2 },
+            Instr::I32Store {
+                offset: 0,
+                align: 2,
+            },
             Instr::LocalGet(2),
             Instr::LocalGet(0), // head
-            Instr::I32Store { offset: 4, align: 2 },
+            Instr::I32Store {
+                offset: 4,
+                align: 2,
+            },
             Instr::LocalGet(2),
             Instr::LocalGet(1), // tail
-            Instr::I32Store { offset: 8, align: 2 },
+            Instr::I32Store {
+                offset: 8,
+                align: 2,
+            },
             Instr::LocalGet(2), // return ptr
         ],
     });
@@ -281,7 +321,10 @@ pub fn compile_to_linear(module_def: &GleamModule) -> (Module, String) {
         locals: vec![Local::param("$ptr", ValType::I32)],
         body: vec![
             Instr::LocalGet(0),
-            Instr::I32Load { offset: 4, align: 2 },
+            Instr::I32Load {
+                offset: 4,
+                align: 2,
+            },
         ],
     });
 
@@ -296,14 +339,24 @@ pub fn compile_to_linear(module_def: &GleamModule) -> (Module, String) {
         locals: vec![Local::param("$ptr", ValType::I32)],
         body: vec![
             Instr::LocalGet(0),
-            Instr::I32Load { offset: 8, align: 2 },
+            Instr::I32Load {
+                offset: 8,
+                align: 2,
+            },
         ],
     });
 
     // --- User functions ---
     let start_func_index = module.functions.len() as u32;
+    let function_map: BTreeMap<String, u32> = module_def
+        .functions
+        .iter()
+        .enumerate()
+        .map(|(i, func)| (func.name.clone(), start_func_index + i as u32))
+        .collect();
 
-    for func in &module_def.functions {
+    for (i, func) in module_def.functions.iter().enumerate() {
+        let func_index = start_func_index + i as u32;
         let func_type_idx = module.add_func_type(FuncType {
             params: vec![ValType::I32; func.params.len()],
             results: vec![ValType::I32],
@@ -325,6 +378,7 @@ pub fn compile_to_linear(module_def: &GleamModule) -> (Module, String) {
             runtime_cons: 6,
             runtime_list_head: 7,
             runtime_list_tail: 8,
+            function_map: function_map.clone(),
         };
         for (i, (name, _)) in func.params.iter().enumerate() {
             ctx.var_map.insert(name.clone(), i as u32);
@@ -355,7 +409,7 @@ pub fn compile_to_linear(module_def: &GleamModule) -> (Module, String) {
 
         module.exports.push(Export {
             name: func.name.clone(),
-            kind: ExportKind::Func(func_type_idx),
+            kind: ExportKind::Func(func_index),
         });
     }
 

@@ -4,7 +4,7 @@ Direct Gleam-to-WebAssembly compiler targeting the **Wasm Garbage Collection (Wa
 
 ## Status
 
-**Active development** — Core compiler infrastructure complete. All codegen paths implemented: GC target (struct subtyping + `ref.test`/`br_on_cast`), linear memory target (bump allocator + tagged values). 92 TDD tests passing across 24 test suites. Verified on Cloudflare Workers via local wrangler.
+**Active development** — Core compiler infrastructure complete. All codegen paths implemented: GC target (struct subtyping + `ref.test`/`br_on_cast`), linear memory target (bump allocator + tagged values). Full Rust test suite passing. Verified on Cloudflare-compatible dogfood builds and local wrangler scenarios.
 
 ## Architecture
 
@@ -46,13 +46,13 @@ gleam-wasm/
     ├── ir_display.rs             # Instruction Display formatting (7 tests)
     ├── type_mapping.rs           # TypeMapper ADT/closure/primitive registration (3 tests)
     ├── wat_emission.rs           # WAT output correctness (2 tests)
-    ├── codegen_primitives.rs     # Primitive expression compilation (7 tests)
-    ├── codegen_control_flow.rs   # Tail calls, closures, structs (4 tests)
+    ├── codegen_primitives.rs     # Primitive expression compilation + local allocation
+    ├── codegen_control_flow.rs   # Tail calls, closures, structs, inter-function calls
     ├── codegen_match.rs          # ADT pattern matching (3 tests)
     ├── ffi_interop.rs            # Web builtins, WASI strings, externref (4 tests)
     ├── integration_list_ops.rs   # List map/filter/fold + Result/Option (2 tests)
     ├── binary_size.rs            # Size benchmarks for Hello World, prelude (6 tests)
-    ├── cloudflare_target.rs      # CF target: memory export, allocator, no GC, size bound (4 tests)
+    ├── cloudflare_target.rs      # CF target: memory export, calls, allocator, no GC, size bound
     ├── dogfood_lustre.rs         # Lustre counter: zero-field variants, match, update (4 tests)
     ├── dogfood_cf.rs             # Lustre counter → CF WASM (2 tests)
     ├── dogfood_wasm_output.rs    # Binary WASM output + magic check (1 test)
@@ -63,7 +63,8 @@ gleam-wasm/
     ├── snapshots.rs              # Insta snapshot tests (2 tests)
     ├── fuzz.rs                   # Proptest fuzzing (3 tests)
     ├── negative_tests.rs         # Error/panic tests (3 tests)
-    └── wasmtime_runtime.rs       # wasmtime runtime execution (3 tests)
+    ├── regressions.rs            # Parser/codegen/Wasm encoding regressions
+    └── wasmtime_runtime.rs       # wasmtime runtime execution
 ```
 
 ## Supported Features
@@ -73,6 +74,7 @@ gleam-wasm/
 | Int, Float, Bool, Nil | ✅ | ✅ |
 | Binary operators (i32/i64/f64) | ✅ | ✅ |
 | Let bindings | ✅ | ✅ |
+| Multiple source-level `let` statements | ✅ | ✅ |
 | If-then-else | ✅ | ✅ |
 | Tail calls (`return_call`) | ✅ | ✅ |
 | ADT variant construction | ✅ | ✅ (tagged) |
@@ -81,6 +83,7 @@ gleam-wasm/
 | Tuples | ✅ | — |
 | String literals | ✅ | — |
 | List (Cons/Nil) | ✅ | — |
+| Source parser list literals | ✅ | ✅ |
 | WAT text emission | ✅ | ✅ |
 | WAT ↔ binary round-trip | ✅ (wast crate) | ✅ (hand-rolled) |
 | JS import stubs | ✅ | ✅ |
@@ -102,7 +105,7 @@ gleam-wasm/
 
 ```bash
 cargo build
-cargo test                 # 92 tests across 24 suites
+cargo test
 cargo fmt --check
 cargo clippy -- -D warnings
 ```
@@ -115,6 +118,8 @@ cargo clippy -- -D warnings
 | Gleam CMS | 4 CRUD endpoints | 270 bytes | 0 JS | ✅ Verified on wrangler |
 | GleamUnison CF | 12 FFI stubs (JS) | ~3KB | 12 JS | ✅ Verified on wrangler |
 | GleamUnison SC | 17 pure WASM stubs | ~3KB | 0 JS | ✅ Verified on wrangler |
+| Generated Stress Suite | 5 apps, 8→128 stage functions | 675B→10.9KB | 0 JS | ✅ wasm-web + CF builds |
+| Desktop GleamUnison | real `util.gleam` + harness | 103B→1.3KB | 0 JS | ✅ wasm-web + CF builds |
 
 ## Key Design Decisions
 
@@ -127,6 +132,7 @@ cargo clippy -- -D warnings
 ## References
 
 - [Production Readiness Criteria](production_readiness.md)
+- [Changelog](CHANGELOG.md)
 - [Rich Hickey Audit](audit.md)
 - [Cloudflare Roadmap](CLOUDFLARE_ROADMAP.md)
 - [Gap Analysis vs gl_wasm + gwr](GAP_ANALYSIS.md)

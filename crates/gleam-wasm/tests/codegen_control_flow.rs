@@ -138,3 +138,84 @@ fn test_struct_new_codegen() {
     let body = compile_expr(&mut mapper, &expr);
     assert_eq!(body[0], Instr::StructNew(2));
 }
+
+#[test]
+fn test_inter_function_call_uses_registered_index() {
+    use gleam_wasm::codegen::ast::TypedExpr;
+    use gleam_wasm::codegen::*;
+
+    let module_def = GleamModule {
+        functions: vec![
+            GleamFunctionDef {
+                name: "first".into(),
+                params: vec![],
+                return_type: ValType::I64,
+                body: TypedExpr::Int(1),
+            },
+            GleamFunctionDef {
+                name: "second".into(),
+                params: vec![],
+                return_type: ValType::I64,
+                body: TypedExpr::Int(2),
+            },
+            GleamFunctionDef {
+                name: "call_second".into(),
+                params: vec![],
+                return_type: ValType::I64,
+                body: TypedExpr::Call {
+                    name: "second".into(),
+                    args: vec![],
+                    type_: ValType::I64,
+                },
+            },
+        ],
+        exports: vec!["call_second".into()],
+        imports: vec![],
+        adt_types: vec![],
+    };
+
+    let output = compile_module_with_opt(&module_def, gleam_wasm::Target::WasmWeb);
+    assert!(output.wat.contains("call $1"), "{}", output.wat);
+}
+
+#[test]
+fn test_closure_in_match_case_gets_inner_function_index() {
+    use gleam_wasm::codegen::ast::TypedExpr;
+    use gleam_wasm::codegen::*;
+
+    let module_def = GleamModule {
+        functions: vec![GleamFunctionDef {
+            name: "make".into(),
+            params: vec![],
+            return_type: ValType::I64,
+            body: TypedExpr::Match {
+                scrutinee: Box::new(TypedExpr::StructNew {
+                    type_index: 2,
+                    fields: vec![],
+                    type_: ValType::Ref(RefType::RefNull(HEAP_TYPE_STRUCT)),
+                }),
+                cases: vec![MatchCase {
+                    variant_index: 2,
+                    bindings: vec![],
+                    body: Box::new(TypedExpr::Closure {
+                        params: vec![],
+                        captured: vec![],
+                        body: Box::new(TypedExpr::Int(42)),
+                        type_: ValType::I64,
+                        inner_func_idx: None,
+                    }),
+                }],
+                type_: ValType::I64,
+            },
+        }],
+        exports: vec!["make".into()],
+        imports: vec![],
+        adt_types: vec![(
+            "Option".into(),
+            vec![("Some".into(), vec![]), ("None_".into(), vec![])],
+        )],
+    };
+
+    let output = compile_module_with_opt(&module_def, gleam_wasm::Target::WasmWeb);
+    assert!(output.wat.contains("ref.func"), "{}", output.wat);
+}

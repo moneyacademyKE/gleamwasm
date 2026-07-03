@@ -36,20 +36,60 @@ fn test_gleamunison_adapter_has_imports() {
     let wasm = emit_wasm(&adapter.module);
 
     assert!(&wasm[0..4] == b"\0asm");
-    assert!(adapter.import_count == 12, "expected 12 imports, got {}", adapter.import_count);
+    assert!(
+        adapter.import_count == 12,
+        "expected 12 imports, got {}",
+        adapter.import_count
+    );
 
     // WAT must contain import declarations
-    assert!(adapter.wat.contains("(import \"gleamunison\" \"hash_bytes\""));
-    assert!(adapter.wat.contains("(import \"gleamunison\" \"hex_to_bytes\""));
-    assert!(adapter.wat.contains("(import \"gleamunison\" \"hash_equal\""));
-    assert!(adapter.wat.contains("(import \"gleamunison\" \"hash_to_hex\""));
-    assert!(adapter.wat.contains("(import \"gleamunison\" \"state_get\""));
-    assert!(adapter.wat.contains("(import \"gleamunison\" \"state_set\""));
-    assert!(adapter.wat.contains("(import \"gleamunison\" \"file_read\""));
-    assert!(adapter.wat.contains("(import \"gleamunison\" \"file_write\""));
+    assert!(
+        adapter
+            .wat
+            .contains("(import \"gleamunison\" \"hash_bytes\"")
+    );
+    assert!(
+        adapter
+            .wat
+            .contains("(import \"gleamunison\" \"hex_to_bytes\"")
+    );
+    assert!(
+        adapter
+            .wat
+            .contains("(import \"gleamunison\" \"hash_equal\"")
+    );
+    assert!(
+        adapter
+            .wat
+            .contains("(import \"gleamunison\" \"hash_to_hex\"")
+    );
+    assert!(
+        adapter
+            .wat
+            .contains("(import \"gleamunison\" \"state_get\"")
+    );
+    assert!(
+        adapter
+            .wat
+            .contains("(import \"gleamunison\" \"state_set\"")
+    );
+    assert!(
+        adapter
+            .wat
+            .contains("(import \"gleamunison\" \"file_read\"")
+    );
+    assert!(
+        adapter
+            .wat
+            .contains("(import \"gleamunison\" \"file_write\"")
+    );
     assert!(adapter.wat.contains("(import \"gleamunison\" \"log\""));
     assert!(adapter.wat.contains("(import \"gleamunison\" \"now_ms\""));
-    assert!(adapter.wat.contains("(import \"gleamunison\" \"timestamp\""));
+    assert!(
+        adapter
+            .wat
+            .contains("(import \"gleamunison\" \"timestamp\"")
+    );
     assert!(adapter.wat.contains("(import \"gleamunison\" \"eval\""));
 
     assert!(adapter.wat.contains("memory"));
@@ -108,10 +148,7 @@ fn test_gleamunison_adapter_full_deploy() {
             },
             GleamFunctionDef {
                 name: "range".into(),
-                params: vec![
-                    ("start".into(), ValType::I64),
-                    ("end".into(), ValType::I64),
-                ],
+                params: vec![("start".into(), ValType::I64), ("end".into(), ValType::I64)],
                 return_type: ValType::I64,
                 body: TypedExpr::If {
                     cond: Box::new(TypedExpr::BinOp {
@@ -204,7 +241,11 @@ fn test_gleamunison_adapter_full_deploy() {
 
     assert!(&wasm[0..4] == b"\0asm");
     assert_eq!(adapter.import_count, 12);
-    assert!(adapter.wat.contains("(import \"gleamunison\" \"hash_bytes\""));
+    assert!(
+        adapter
+            .wat
+            .contains("(import \"gleamunison\" \"hash_bytes\"")
+    );
     assert!(adapter.wat.contains("\"local_var_index\""));
     assert!(adapter.wat.contains("\"range\""));
     assert!(adapter.wat.contains("\"hash\""));

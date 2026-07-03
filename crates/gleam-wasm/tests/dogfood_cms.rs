@@ -105,10 +105,7 @@ fn test_cms_find_page_option() {
     let module_def = GleamModule {
         functions: vec![GleamFunctionDef {
             name: "find_page".into(),
-            params: vec![
-                ("count".into(), ValType::I64),
-                ("id".into(), ValType::I64),
-            ],
+            params: vec![("count".into(), ValType::I64), ("id".into(), ValType::I64)],
             return_type: ValType::I64,
             // if id < count { id } else { -1 }
             body: TypedExpr::If {
@@ -245,10 +242,7 @@ fn test_cms_full_deploy() {
             },
             GleamFunctionDef {
                 name: "find_page".into(),
-                params: vec![
-                    ("count".into(), ValType::I64),
-                    ("id".into(), ValType::I64),
-                ],
+                params: vec![("count".into(), ValType::I64), ("id".into(), ValType::I64)],
                 return_type: ValType::I64,
                 body: TypedExpr::If {
                     cond: Box::new(TypedExpr::BinOp {

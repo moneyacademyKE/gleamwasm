@@ -1,8 +1,9 @@
-use gleam_wasm::codegen::GleamModule;
 /// Tests for the Cloudflare-compatible linear memory target.
 /// Verifies: no GC instructions, valid WASM magic, memory export.
 use gleam_wasm::codegen::compile_to_linear;
+use gleam_wasm::codegen::{GleamFunctionDef, GleamModule, TypedExpr};
 use gleam_wasm::emit::emit_wasm;
+use gleam_wasm::ir::{Instr, ValType};
 
 #[test]
 fn test_cf_target_produces_valid_wasm() {
@@ -86,5 +87,143 @@ fn test_cf_target_size_bound() {
         wasm.len() < 1024,
         "CF runtime too large: {} bytes (target < 1024)",
         wasm.len()
+    );
+}
+
+#[test]
+fn test_cf_target_exports_user_function_indices() {
+    let module_def = GleamModule {
+        functions: vec![
+            GleamFunctionDef {
+                name: "first".into(),
+                params: vec![],
+                return_type: ValType::I64,
+                body: TypedExpr::Int(1),
+            },
+            GleamFunctionDef {
+                name: "second".into(),
+                params: vec![],
+                return_type: ValType::I64,
+                body: TypedExpr::Int(2),
+            },
+        ],
+        exports: vec![],
+        imports: vec![],
+        adt_types: vec![],
+    };
+
+    let (module, _wat) = compile_to_linear(&module_def);
+    let first_index = module
+        .functions
+        .iter()
+        .position(|func| func.name.as_deref() == Some("first"))
+        .unwrap() as u32;
+    let second_index = module
+        .functions
+        .iter()
+        .position(|func| func.name.as_deref() == Some("second"))
+        .unwrap() as u32;
+    assert_eq!(module.exports[0].name, "first");
+    assert_eq!(
+        module.exports[0].kind,
+        gleam_wasm::ir::module::ExportKind::Func(first_index)
+    );
+    assert_eq!(module.exports[1].name, "second");
+    assert_eq!(
+        module.exports[1].kind,
+        gleam_wasm::ir::module::ExportKind::Func(second_index)
+    );
+}
+
+#[test]
+fn test_cf_tail_call_uses_named_function_index() {
+    let module_def = GleamModule {
+        functions: vec![
+            GleamFunctionDef {
+                name: "first".into(),
+                params: vec![],
+                return_type: ValType::I64,
+                body: TypedExpr::Int(1),
+            },
+            GleamFunctionDef {
+                name: "second".into(),
+                params: vec![],
+                return_type: ValType::I64,
+                body: TypedExpr::TailCall {
+                    name: "first".into(),
+                    args: vec![],
+                    type_: ValType::I64,
+                },
+            },
+        ],
+        exports: vec![],
+        imports: vec![],
+        adt_types: vec![],
+    };
+
+    let (module, _wat) = compile_to_linear(&module_def);
+    let first_index = module
+        .functions
+        .iter()
+        .position(|func| func.name.as_deref() == Some("first"))
+        .unwrap() as u32;
+    let second_index = module
+        .functions
+        .iter()
+        .position(|func| func.name.as_deref() == Some("second"))
+        .unwrap();
+    assert!(
+        module.functions[second_index]
+            .body
+            .contains(&Instr::ReturnCall(first_index))
+    );
+}
+
+#[test]
+fn test_cf_normal_call_uses_named_function_index() {
+    let module_def = GleamModule {
+        functions: vec![
+            GleamFunctionDef {
+                name: "first".into(),
+                params: vec![].into(),
+                return_type: ValType::I64,
+                body: TypedExpr::Int(1),
+            },
+            GleamFunctionDef {
+                name: "second".into(),
+                params: vec![],
+                return_type: ValType::I64,
+                body: TypedExpr::Call {
+                    name: "first".into(),
+                    args: vec![],
+                    type_: ValType::I64,
+                },
+            },
+        ],
+        exports: vec![],
+        imports: vec![],
+        adt_types: vec![],
+    };
+
+    let (module, _wat) = compile_to_linear(&module_def);
+    let first_index = module
+        .functions
+        .iter()
+        .position(|func| func.name.as_deref() == Some("first"))
+        .unwrap() as u32;
+    let second_index = module
+        .functions
+        .iter()
+        .position(|func| func.name.as_deref() == Some("second"))
+        .unwrap();
+    assert!(
+        module.functions[second_index]
+            .body
+            .contains(&Instr::Call(first_index))
+    );
+    assert!(
+        !module.functions[second_index]
+            .body
+            .contains(&Instr::Unreachable)
     );
 }

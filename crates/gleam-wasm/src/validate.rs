@@ -7,13 +7,29 @@ pub enum ValidationError {
     /// A type index references a type that doesn't exist.
     InvalidTypeIndex(u32),
     /// A function references a type with index that doesn't exist.
-    InvalidFunctionType { function: String, type_index: u32, max: u32 },
+    InvalidFunctionType {
+        function: String,
+        type_index: u32,
+        max: u32,
+    },
     /// A local.get/set/tee references an out-of-bounds local index.
-    InvalidLocal { function: String, index: u32, max: u32 },
+    InvalidLocal {
+        function: String,
+        index: u32,
+        max: u32,
+    },
     /// A call/return_call references a non-existent function index.
-    InvalidCall { function: String, callee: u32, max: u32 },
+    InvalidCall {
+        function: String,
+        callee: u32,
+        max: u32,
+    },
     /// A br/br_if/br_table targets a label depth beyond available blocks.
-    InvalidBranch { function: String, depth: u32, max_depth: u32 },
+    InvalidBranch {
+        function: String,
+        depth: u32,
+        max_depth: u32,
+    },
     /// An export references a non-existent function index.
     InvalidExportFunction { name: String, index: u32, max: u32 },
     /// GC instructions found in a module that targets linear memory.
@@ -30,7 +46,7 @@ pub fn validate_module(module: &Module, is_linear: bool) -> Result<(), Validatio
     // Validate type references in functions
     for func in &module.functions {
         if func.type_index >= module.types.len() as u32 {
-            return Err(ValidationError::InvalidFunctionType { 
+            return Err(ValidationError::InvalidFunctionType {
                 function: func.name.clone().unwrap_or_default(),
                 type_index: func.type_index,
                 max: module.types.len() as u32,
@@ -44,7 +60,8 @@ pub fn validate_module(module: &Module, is_linear: bool) -> Result<(), Validatio
 
         // Count param locals for correct indexing
         let param_count = func.locals.iter().filter(|l| l.kind.is_param()).count() as u32;
-        let max_body_local = (param_count + func.locals.iter().filter(|l| l.kind.is_var()).count() as u32).max(1);
+        let max_body_local =
+            (param_count + func.locals.iter().filter(|l| l.kind.is_var()).count() as u32).max(1);
 
         validate_instr_slice(
             &func.body,
@@ -106,14 +123,9 @@ fn validate_instr_slice(
                     return Err(ValidationError::InvalidTypeIndex(*i));
                 }
             }
-            Instr::StructNew(i) | Instr::StructGet {
-                type_index: i,
-                ..
-            }
-            | Instr::StructSet {
-                type_index: i,
-                ..
-            }
+            Instr::StructNew(i)
+            | Instr::StructGet { type_index: i, .. }
+            | Instr::StructSet { type_index: i, .. }
             | Instr::ArrayNew(i)
             | Instr::ArrayGet(i)
             | Instr::ArraySet(i)
@@ -127,11 +139,7 @@ fn validate_instr_slice(
                         TypeDefKind::Struct(s) => s.name.clone().unwrap_or_default(),
                         TypeDefKind::Array(a) => a.name.clone().unwrap_or_default(),
                         TypeDefKind::Func(ft) => {
-                            format!(
-                                "func({}->{})",
-                                ft.params.len(),
-                                ft.results.len()
-                            )
+                            format!("func({}->{})", ft.params.len(), ft.results.len())
                         }
                     };
                     return Err(ValidationError::GcInstructionInLinearModule {
@@ -140,7 +148,10 @@ fn validate_instr_slice(
                     });
                 }
             }
-            Instr::RefTest(_) | Instr::RefCast(_) | Instr::BrOnCast { .. } | Instr::BrOnCastFail { .. } => {
+            Instr::RefTest(_)
+            | Instr::RefCast(_)
+            | Instr::BrOnCast { .. }
+            | Instr::BrOnCastFail { .. } => {
                 if is_linear {
                     return Err(ValidationError::GcInstructionInLinearModule {
                         function: func_name.to_string(),
@@ -148,7 +159,10 @@ fn validate_instr_slice(
                     });
                 }
             }
-            Instr::RefNull(_) | Instr::RefI31 | Instr::ExternConvertAny | Instr::AnyConvertExtern => {
+            Instr::RefNull(_)
+            | Instr::RefI31
+            | Instr::ExternConvertAny
+            | Instr::AnyConvertExtern => {
                 if is_linear {
                     return Err(ValidationError::GcInstructionInLinearModule {
                         function: func_name.to_string(),
@@ -166,7 +180,12 @@ fn validate_instr_slice(
                 }
             }
             Instr::BrTable { branches, default } => {
-                let max_label = branches.iter().chain(std::iter::once(default)).max().copied().unwrap_or(0);
+                let max_label = branches
+                    .iter()
+                    .chain(std::iter::once(default))
+                    .max()
+                    .copied()
+                    .unwrap_or(0);
                 if max_label > depth {
                     return Err(ValidationError::InvalidBranch {
                         function: func_name.to_string(),
@@ -220,8 +239,8 @@ fn validate_instr_slice(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ir::module::FuncType;
     use crate::ir::Function;
+    use crate::ir::module::FuncType;
 
     #[test]
     fn test_validate_empty_module() {

@@ -71,7 +71,8 @@ fn compile_recursive(builder: &mut FunctionBuilder, mapper: &mut TypeMapper, exp
             type_,
         } => {
             compile_recursive(builder, mapper, value);
-            let local_idx = builder.add_local(type_.clone());
+            let local_idx = mapper.next_local_index();
+            builder.add_local(type_.clone());
             mapper.register_local(name.clone(), local_idx);
             builder.local_set(local_idx);
             compile_recursive(builder, mapper, body);

@@ -4,8 +4,8 @@
 //! Zero JavaScript imports required — the resulting `.wasm` can run
 //! on any MVP-compliant runtime (Cloudflare Workers, wasmtime, Node.js, Deno).
 
-use crate::codegen::linear::FunctionContext;
 use crate::codegen::GleamModule;
+use crate::codegen::linear::FunctionContext;
 use crate::ir::module::{
     Export, ExportKind, FuncType, Function, Global, GlobalType, Memory, Module,
 };
@@ -103,10 +103,13 @@ pub fn compile_self_contained(module_def: &GleamModule) -> SelfContainedAdapter 
         name: Some("$get_tag".into()),
         type_index: gt_ty,
         locals: vec![Local::param("$ptr", ValType::I32)],
-        body: vec![Instr::LocalGet(0), Instr::I32Load {
-            offset: 0,
-            align: 2,
-        }],
+        body: vec![
+            Instr::LocalGet(0),
+            Instr::I32Load {
+                offset: 0,
+                align: 2,
+            },
+        ],
     });
 
     // 3: get_payload(ptr: i32) -> i32
@@ -118,10 +121,13 @@ pub fn compile_self_contained(module_def: &GleamModule) -> SelfContainedAdapter 
         name: Some("$get_payload".into()),
         type_index: gp_ty,
         locals: vec![Local::param("$ptr", ValType::I32)],
-        body: vec![Instr::LocalGet(0), Instr::I32Load {
-            offset: 4,
-            align: 2,
-        }],
+        body: vec![
+            Instr::LocalGet(0),
+            Instr::I32Load {
+                offset: 4,
+                align: 2,
+            },
+        ],
     });
 
     // 4: $hash_bytes(data_ptr: i32, data_len: i32) -> i32 (returns ptr to 4-byte hash)
@@ -154,41 +160,41 @@ pub fn compile_self_contained(module_def: &GleamModule) -> SelfContainedAdapter 
                 Instr::I32Const(0),
                 Instr::LocalSet(3),
             ];
-            // Loop body
-            let mut loop_body = Vec::new();
-            // $byte = load8u($data + $i)
-            loop_body.push(Instr::LocalGet(0));
-            loop_body.push(Instr::LocalGet(3));
-            loop_body.push(Instr::I32Add);
-            loop_body.push(Instr::I32Load8U {
-                offset: 0,
-                align: 0,
-            });
-            loop_body.push(Instr::LocalSet(4));
-            // $hash = $hash ^ $byte
-            loop_body.push(Instr::LocalGet(2));
-            loop_body.push(Instr::LocalGet(4));
-            loop_body.push(Instr::I32Xor);
-            loop_body.push(Instr::LocalSet(2));
-            // $hash = $hash * 0x01000193
-            loop_body.push(Instr::LocalGet(2));
-            loop_body.push(Instr::I32Const(0x0193));
-            loop_body.push(Instr::I32Const(0x0100));
-            loop_body.push(Instr::I32Const(16));
-            loop_body.push(Instr::I32Shl);
-            loop_body.push(Instr::I32Or);
-            loop_body.push(Instr::I32Mul);
-            loop_body.push(Instr::LocalSet(2));
-            // $i = $i + 1
-            loop_body.push(Instr::LocalGet(3));
-            loop_body.push(Instr::I32Const(1));
-            loop_body.push(Instr::I32Add);
-            loop_body.push(Instr::LocalSet(3));
-            // br_if $loop ($i < $len)
-            loop_body.push(Instr::LocalGet(3));
-            loop_body.push(Instr::LocalGet(1));
-            loop_body.push(Instr::I32LtS);
-            loop_body.push(Instr::BrIf(0));
+            let loop_body = vec![
+                // $byte = load8u($data + $i)
+                Instr::LocalGet(0),
+                Instr::LocalGet(3),
+                Instr::I32Add,
+                Instr::I32Load8U {
+                    offset: 0,
+                    align: 0,
+                },
+                Instr::LocalSet(4),
+                // $hash = $hash ^ $byte
+                Instr::LocalGet(2),
+                Instr::LocalGet(4),
+                Instr::I32Xor,
+                Instr::LocalSet(2),
+                // $hash = $hash * 0x01000193
+                Instr::LocalGet(2),
+                Instr::I32Const(0x0193),
+                Instr::I32Const(0x0100),
+                Instr::I32Const(16),
+                Instr::I32Shl,
+                Instr::I32Or,
+                Instr::I32Mul,
+                Instr::LocalSet(2),
+                // $i = $i + 1
+                Instr::LocalGet(3),
+                Instr::I32Const(1),
+                Instr::I32Add,
+                Instr::LocalSet(3),
+                // br_if $loop ($i < $len)
+                Instr::LocalGet(3),
+                Instr::LocalGet(1),
+                Instr::I32LtS,
+                Instr::BrIf(0),
+            ];
 
             instrs.push(Instr::Loop(Box::new(
                 Block::new(loop_body, None).label("hash_loop"),
@@ -240,48 +246,50 @@ pub fn compile_self_contained(module_def: &GleamModule) -> SelfContainedAdapter 
         ],
         body: {
             let mut instrs = vec![
-                Instr::Block(Box::new(Block::new(
-                    vec![
-                        Instr::LocalGet(1),
-                        Instr::LocalGet(3),
-                        Instr::I32Eq,
-                        Instr::BrIf(0),
-                        Instr::I32Const(0),
-                        Instr::Return,
-                    ],
-                    None,
-                ).label("check_len"))),
+                Instr::Block(Box::new(
+                    Block::new(
+                        vec![
+                            Instr::LocalGet(1),
+                            Instr::LocalGet(3),
+                            Instr::I32Eq,
+                            Instr::BrIf(0),
+                            Instr::I32Const(0),
+                            Instr::Return,
+                        ],
+                        None,
+                    )
+                    .label("check_len"),
+                )),
                 // $i = 0
                 Instr::I32Const(0),
                 Instr::LocalSet(4),
             ];
-            // loop body
-            let mut loop_body = Vec::new();
-            loop_body.push(Instr::LocalGet(0));
-            loop_body.push(Instr::LocalGet(4));
-            loop_body.push(Instr::I32Add);
-            loop_body.push(Instr::I32Load8U {
-                offset: 0,
-                align: 0,
-            });
-            loop_body.push(Instr::LocalGet(2));
-            loop_body.push(Instr::LocalGet(4));
-            loop_body.push(Instr::I32Add);
-            loop_body.push(Instr::I32Load8U {
-                offset: 0,
-                align: 0,
-            });
-            loop_body.push(Instr::I32Ne);
-            // if mismatch → return 0
-            loop_body.push(Instr::BrIf(1)); // br to mismatch handler below
-            loop_body.push(Instr::LocalGet(4));
-            loop_body.push(Instr::I32Const(1));
-            loop_body.push(Instr::I32Add);
-            loop_body.push(Instr::LocalSet(4));
-            loop_body.push(Instr::LocalGet(4));
-            loop_body.push(Instr::LocalGet(1));
-            loop_body.push(Instr::I32LtS);
-            loop_body.push(Instr::BrIf(0));
+            let loop_body = vec![
+                Instr::LocalGet(0),
+                Instr::LocalGet(4),
+                Instr::I32Add,
+                Instr::I32Load8U {
+                    offset: 0,
+                    align: 0,
+                },
+                Instr::LocalGet(2),
+                Instr::LocalGet(4),
+                Instr::I32Add,
+                Instr::I32Load8U {
+                    offset: 0,
+                    align: 0,
+                },
+                Instr::I32Ne,
+                Instr::BrIf(1), // br to mismatch handler below
+                Instr::LocalGet(4),
+                Instr::I32Const(1),
+                Instr::I32Add,
+                Instr::LocalSet(4),
+                Instr::LocalGet(4),
+                Instr::LocalGet(1),
+                Instr::I32LtS,
+                Instr::BrIf(0),
+            ];
 
             instrs.push(Instr::Loop(Box::new(
                 Block::new(loop_body, None).label("eq_loop"),
@@ -354,12 +362,7 @@ pub fn compile_self_contained(module_def: &GleamModule) -> SelfContainedAdapter 
 
     // 9: $state_set(key_ptr: i32, key_len: i32, val_ptr: i32, val_len: i32) -> i32
     let sset_ty = module.add_func_type(FuncType {
-        params: vec![
-            ValType::I32,
-            ValType::I32,
-            ValType::I32,
-            ValType::I32,
-        ],
+        params: vec![ValType::I32, ValType::I32, ValType::I32, ValType::I32],
         results: vec![ValType::I32],
     });
     module.functions.push(Function {
@@ -376,17 +379,17 @@ pub fn compile_self_contained(module_def: &GleamModule) -> SelfContainedAdapter 
         body: vec![
             Instr::LocalGet(0),
             Instr::LocalGet(1),
-            Instr::Call(4), // $hash_bytes
-            Instr::LocalSet(4), // $hash in local 4
-            Instr::LocalGet(3), // val_len
-            Instr::Call(0), // alloc(val_len)
-            Instr::LocalSet(5), // $alloc_ptr in local 5
-            Instr::LocalGet(5), // dst = alloc_ptr
-            Instr::LocalGet(2), // src = val_ptr
-            Instr::LocalGet(3), // len = val_len
-            Instr::Call(16), // $memcpy
-            Instr::Drop, // discard memcpy return
-            Instr::LocalGet(4), // address = $hash
+            Instr::Call(4),       // $hash_bytes
+            Instr::LocalSet(4),   // $hash in local 4
+            Instr::LocalGet(3),   // val_len
+            Instr::Call(0),       // alloc(val_len)
+            Instr::LocalSet(5),   // $alloc_ptr in local 5
+            Instr::LocalGet(5),   // dst = alloc_ptr
+            Instr::LocalGet(2),   // src = val_ptr
+            Instr::LocalGet(3),   // len = val_len
+            Instr::Call(16),      // $memcpy
+            Instr::Drop,          // discard memcpy return
+            Instr::LocalGet(4),   // address = $hash
             Instr::I32Const(128), // skip header
             Instr::I32Add,
             Instr::LocalGet(5), // value = $alloc_ptr
@@ -416,12 +419,7 @@ pub fn compile_self_contained(module_def: &GleamModule) -> SelfContainedAdapter 
 
     // 11: $file_write(path_ptr: i32, path_len: i32, data_ptr: i32, data_len: i32) -> i32
     let fwrite_ty = module.add_func_type(FuncType {
-        params: vec![
-            ValType::I32,
-            ValType::I32,
-            ValType::I32,
-            ValType::I32,
-        ],
+        params: vec![ValType::I32, ValType::I32, ValType::I32, ValType::I32],
         results: vec![ValType::I32],
     });
     module.functions.push(Function {
@@ -521,29 +519,30 @@ pub fn compile_self_contained(module_def: &GleamModule) -> SelfContainedAdapter 
                 Instr::I32Const(0),
                 Instr::LocalSet(3), // $i = 0
             ];
-            let mut loop_body = Vec::new();
-            // memory[$dst + $i] = memory[$src + $i]
-            loop_body.push(Instr::LocalGet(0));
-            loop_body.push(Instr::LocalGet(3));
-            loop_body.push(Instr::I32Add);
-            loop_body.push(Instr::LocalGet(1));
-            loop_body.push(Instr::LocalGet(3));
-            loop_body.push(Instr::I32Add);
-            loop_body.push(Instr::I32Load8U {
-                offset: 0,
-                align: 0,
-            });
-            loop_body.push(Instr::I32Store8 {
-                offset: 0,
-                align: 0,
-            });
-            loop_body.push(Instr::LocalGet(3));
-            loop_body.push(Instr::I32Const(1));
-            loop_body.push(Instr::I32Add);
-            loop_body.push(Instr::LocalTee(3));
-            loop_body.push(Instr::LocalGet(2));
-            loop_body.push(Instr::I32LtS);
-            loop_body.push(Instr::BrIf(0));
+            let loop_body = vec![
+                // memory[$dst + $i] = memory[$src + $i]
+                Instr::LocalGet(0),
+                Instr::LocalGet(3),
+                Instr::I32Add,
+                Instr::LocalGet(1),
+                Instr::LocalGet(3),
+                Instr::I32Add,
+                Instr::I32Load8U {
+                    offset: 0,
+                    align: 0,
+                },
+                Instr::I32Store8 {
+                    offset: 0,
+                    align: 0,
+                },
+                Instr::LocalGet(3),
+                Instr::I32Const(1),
+                Instr::I32Add,
+                Instr::LocalTee(3),
+                Instr::LocalGet(2),
+                Instr::I32LtS,
+                Instr::BrIf(0),
+            ];
 
             instrs.push(Instr::Loop(Box::new(
                 Block::new(loop_body, None).label("memcpy_loop"),
@@ -554,9 +553,16 @@ pub fn compile_self_contained(module_def: &GleamModule) -> SelfContainedAdapter 
     });
 
     let builtin_count = module.functions.len() as u32;
+    let function_map: BTreeMap<String, u32> = module_def
+        .functions
+        .iter()
+        .enumerate()
+        .map(|(i, func)| (func.name.clone(), builtin_count + i as u32))
+        .collect();
 
     // --- User functions ---
-    for func in &module_def.functions {
+    for (i, func) in module_def.functions.iter().enumerate() {
+        let func_index = builtin_count + i as u32;
         let func_type_idx = module.add_func_type(FuncType {
             params: vec![ValType::I32; func.params.len()],
             results: vec![ValType::I32],
@@ -578,6 +584,7 @@ pub fn compile_self_contained(module_def: &GleamModule) -> SelfContainedAdapter 
             runtime_cons: 18,
             runtime_list_head: 19,
             runtime_list_tail: 20,
+            function_map: function_map.clone(),
         };
         for (i, (name, _)) in func.params.iter().enumerate() {
             ctx.var_map.insert(name.clone(), i as u32);
@@ -606,7 +613,7 @@ pub fn compile_self_contained(module_def: &GleamModule) -> SelfContainedAdapter 
 
         module.exports.push(Export {
             name: func.name.clone(),
-            kind: ExportKind::Func(func_type_idx),
+            kind: ExportKind::Func(func_index),
         });
     }
 
