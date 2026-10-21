@@ -48,7 +48,7 @@ their `TypedExpr` → our IR inside this crate.
 A **separate tool** (own repo or quarantined workspace member, flag off by
 default) depends on gleam-core, runs the full package analysis, and emits the
 typed AST as **data** (JSON/bincode schema). `gleam-wasm` consumes that data
-file and stays a pure 30-crate backend.
+file and stays a pure backend (measured post-implementation: 44 crates — the serde_json boundary adds 14 — vs A1's 636, a 14× margin).
 
 - **Pro:** composition through data — the Hickey shape. Supply chain and
   toolchain pin quarantined in the tool; gleam-wasm keeps its 2-runtime-dep

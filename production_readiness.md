@@ -14,7 +14,7 @@ This document defines the gates to pass before this compiler backend is consider
 | 2. CF Target Correctness | ✅ Verified | 25+ | Linear target: allocator, tagged values, ADT match, FNV hash, KV store, memcpy |
 | 3. Binary Size | ✅ On track | 10+ | Lustre counter: 186 bytes. CMS: 270 bytes. Runtime: <1KB per builtin |
 | 4. Performance | ✅ Verified | 3 | wasmtime runtime tests (add, factorial, export). Wrangler smoke tests pass |
-| 5. Toolchain Integration | ⚠️ Partial | 0 | CLI: `--target wasm-web|wasm-wasi|wasm-cf`. Gleam source parser wired into the CLI as an I64-only subset — all values typed `I64`, annotations ignored, string literals rejected, imports/consts/custom types skipped; no type inference, no modules; full-language compilation not integrated (docs/gap_analysis_v2.md §C) |
+| 5. Toolchain Integration | ⚠️ Partial | 0 | CLI: `--target wasm-web|wasm-wasi|wasm-cf`, `--frontend sidecar|builtin`. `.gleam` compiles by default via the A2 sidecar (`crates/gleamwasm-frontend`, ADR-001): real gleam-core inference → `gleamwasm-typed-ast/v1` JSON. MVP scope: standalone modules, scalars, let/binops/calls — no imports, custom types, `case`, lists, closures. `--frontend builtin` = zero-dep I64 subset parser (docs/gap_analysis_v2.md §C) |
 | 6. Test Coverage | ✅ Met | 92 | 24 suites: unit + integration + snapshot + fuzz + negative + wasmtime + wrangler |
 | 7. Documentation | ✅ Done | — | README, ADR, audit, production criteria, gap analysis, cloudflare roadmap, dogfooding |
 | 8. CI/CD Pipeline | ✅ Done | — | GitHub Actions (fmt, clippy, test, macOS matrix) |
@@ -82,7 +82,7 @@ This document defines the gates to pass before this compiler backend is consider
 | Section ordering | type(1)→import(2)→func(3)→mem(5)→global(6)→export(7)→code(10) | ✅ |
 | Pre-emission validation | `validate_module()` catches invalid locals, calls, branches | ✅ |
 | wasm-opt integration | Post-compilation optimization | ✅ Plumbed (`codegen/compile.rs:292`); falls back to unoptimized bytes when the binary is absent |
-| Gleam source parser | `.gleam` → TypedExpr | ⚠️ Subset wired into CLI — all values typed `I64`, annotations ignored, string literals rejected, imports/consts/custom types skipped; no type inference, no modules; full-language compilation not integrated (docs/gap_analysis_v2.md §C) |
+| Gleam source parser | `.gleam` → TypedExpr | ⚠️ Default: A2 sidecar (`crates/gleamwasm-frontend`, ADR-001) — real gleam-core inference → `gleamwasm-typed-ast/v1` JSON → TypedExpr. MVP scope: standalone modules, scalars, let/binops/calls — no imports, custom types, `case`, lists, closures. `--frontend builtin` = zero-dep I64 subset parser (docs/gap_analysis_v2.md §C) |
 
 > Toolchain/parser status is kept in sync with [docs/gap_analysis_v2.md](docs/gap_analysis_v2.md) §C — if you edit one, edit the other.
 
