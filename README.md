@@ -136,6 +136,7 @@ cargo clippy -- -D warnings
 - [Rich Hickey Audit](audit.md)
 - [Cloudflare Roadmap](CLOUDFLARE_ROADMAP.md)
 - [Gap Analysis vs gl_wasm + gwr](GAP_ANALYSIS.md)
-- [Remaining Gaps Analysis (v2)](file:///Users/moe/Desktop/gleamwasm/docs/gap_analysis_v2.md)
+- [Remaining Gaps Analysis (v2)](docs/gap_analysis_v2.md)
+- [Supported Wasm Instruction Matrix](docs/SUPPORTED_SPEC.md) — generated from the encoder via `bb scripts/gen_supported_spec.clj`
 - [Dogfooding Report](DOGFOOD.md)
 - [GleamUnison Analysis](dogfooding/gleamunison/ANALYSIS.md)

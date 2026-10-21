@@ -2,6 +2,7 @@ pub mod cli;
 pub mod codegen;
 pub mod emit;
 pub mod ffi;
+pub mod frontend;
 pub mod ir;
 pub mod parse;
 pub mod validate;
@@ -14,6 +15,7 @@ pub fn run() -> Result<(), String> {
     match args.command {
         cli::Command::Build {
             target,
+            frontend,
             input,
             output,
             emit_wat,
@@ -24,7 +26,12 @@ pub fn run() -> Result<(), String> {
                 Some("wasm-cf") => crate::Target::WasmCf,
                 Some(t) => return Err(format!("unknown target: {t}")),
             };
-            build_module(&input, &output, target, emit_wat)
+            let frontend = match frontend.as_str() {
+                "sidecar" => Frontend::Sidecar,
+                "builtin" => Frontend::Builtin,
+                other => return Err(format!("unknown frontend: {other}")),
+            };
+            build_module(&input, &output, target, emit_wat, frontend)
         }
     }
 }
@@ -36,19 +43,47 @@ pub enum Target {
     WasmCf,
 }
 
-fn build_module(input: &str, output: &str, target: Target, emit_wat: bool) -> Result<(), String> {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Frontend {
+    /// A2 sidecar (ADR-001): gleam-core inference behind a JSON data
+    /// boundary — real types, real Gleam semantics (MVP subset).
+    Sidecar,
+    /// Legacy zero-dep recursive-descent parser: I64-only subset.
+    Builtin,
+}
+
+fn build_module(
+    input: &str,
+    output: &str,
+    target: Target,
+    emit_wat: bool,
+    frontend: Frontend,
+) -> Result<(), String> {
     use crate::codegen::{compile_module_with_opt, compile_to_linear};
     use crate::emit::emit_wasm;
 
     let module_def = if input.ends_with(".gleam") {
-        let source =
+        match frontend {
+            Frontend::Sidecar => {
+                let json = crate::frontend::run_sidecar(input)?;
+                crate::frontend::module_from_json(&json)?
+            }
+            Frontend::Builtin => {
+                let source = std::fs::read_to_string(input)
+                    .map_err(|e| format!("failed to read {input}: {e}"))?;
+                crate::parse::parse_module(&source).map_err(|e| {
+                    format!(
+                        "parse error at line {} col {}: {}",
+                        e.line, e.col, e.message
+                    )
+                })?
+            }
+        }
+    } else if input.ends_with(".json") {
+        // Two-step UX (ADR-001 consequence 3): a pre-extracted typed AST.
+        let json =
             std::fs::read_to_string(input).map_err(|e| format!("failed to read {input}: {e}"))?;
-        crate::parse::parse_module(&source).map_err(|e| {
-            format!(
-                "parse error at line {} col {}: {}",
-                e.line, e.col, e.message
-            )
-        })?
+        crate::frontend::module_from_json(&json)?
     } else {
         // Default to empty module for test/development paths
         crate::codegen::GleamModule {

@@ -32,7 +32,7 @@ fn test_compile_int_addition() {
     println!("{wat}");
     assert!(wat.contains("i64.const 10"));
     assert!(wat.contains("i64.const 20"));
-    assert!(wat.contains("call $0"));
+    assert!(wat.contains("call 0"));
 }
 
 #[test]

@@ -185,7 +185,7 @@ fn test_cf_normal_call_uses_named_function_index() {
         functions: vec![
             GleamFunctionDef {
                 name: "first".into(),
-                params: vec![].into(),
+                params: vec![],
                 return_type: ValType::I64,
                 body: TypedExpr::Int(1),
             },

@@ -285,6 +285,16 @@ pub fn compile_module_with_opt(def: &GleamModule, target: Target) -> CompileOutp
         });
     }
 
+    // WASI-style entry alias: CLI runtimes (wasmtime etc.) invoke `_start`,
+    // while browsers/workers embedders keep calling `main`. Data-driven and
+    // unconditional: an extra export is harmless on every target.
+    if let Some(i) = def.exports.iter().position(|n| n == "main") {
+        mapper.module_mut().exports.push(Export {
+            name: "_start".to_string(),
+            kind: ExportKind::Func(i as u32),
+        });
+    }
+
     let wat = crate::emit::emit_wat(mapper.module());
     let wasm_binary = crate::emit::emit_wasm(mapper.module());
 

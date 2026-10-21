@@ -47,18 +47,18 @@ impl fmt::Display for Instr {
             Instr::F64Gt => write!(f, "f64.gt"),
             Instr::F64Le => write!(f, "f64.le"),
             Instr::F64Ge => write!(f, "f64.ge"),
-            Instr::StructNew(i) => write!(f, "struct.new ${i}"),
+            Instr::StructNew(i) => write!(f, "struct.new {i}"),
             Instr::StructGet {
                 type_index,
                 field_index,
-            } => write!(f, "struct.get ${type_index} $f{field_index}"),
+            } => write!(f, "struct.get {type_index} {field_index}"),
             Instr::StructSet {
                 type_index,
                 field_index,
-            } => write!(f, "struct.set ${type_index} $f{field_index}"),
-            Instr::ArrayNew(i) => write!(f, "array.new ${i}"),
-            Instr::ArrayGet(i) => write!(f, "array.get ${i}"),
-            Instr::ArraySet(i) => write!(f, "array.set ${i}"),
+            } => write!(f, "struct.set {type_index} {field_index}"),
+            Instr::ArrayNew(i) => write!(f, "array.new {i}"),
+            Instr::ArrayGet(i) => write!(f, "array.get {i}"),
+            Instr::ArraySet(i) => write!(f, "array.set {i}"),
             Instr::ArrayLen => write!(f, "array.len"),
             Instr::RefTest(t) => write!(f, "ref.test {t}"),
             Instr::RefCast(t) => write!(f, "ref.cast {t}"),
@@ -72,22 +72,31 @@ impl fmt::Display for Instr {
                 then_branch,
                 else_branch,
             } => {
+                // Instruction-form if: `if $label (result T) ... else ... end`.
+                // The label belongs on the `if`; `then`/`else` are not
+                // standalone instructions and cannot carry labels. Br/BrIf
+                // target by depth, so dropping a decorative else label is safe.
                 let result = then_branch
                     .result
                     .as_ref()
                     .map(|t| format!(" (result {})", t.as_ref()))
                     .unwrap_or_default();
-                if let Some(else_blk) = else_branch {
-                    writeln!(f, "if{result}")?;
-                    write_instr_block(f, "then", then_branch)?;
-                    writeln!(f)?;
-                    write_instr_block(f, "else", else_blk)?;
-                    writeln!(f, "\nend")
-                } else {
-                    writeln!(f, "if{result}")?;
-                    write_instr_block(f, "then", then_branch)?;
-                    writeln!(f, "\nend")
+                let label = then_branch
+                    .label
+                    .as_ref()
+                    .map(|l| format!(" ${l}"))
+                    .unwrap_or_default();
+                writeln!(f, "if{label}{result}")?;
+                for i in &then_branch.instrs {
+                    writeln!(f, "{i}")?;
                 }
+                if let Some(else_blk) = else_branch {
+                    writeln!(f, "else")?;
+                    for i in &else_blk.instrs {
+                        writeln!(f, "{i}")?;
+                    }
+                }
+                write!(f, "end")
             }
             Instr::Br(i) => write!(f, "br {i}"),
             Instr::BrIf(i) => write!(f, "br_if {i}"),
@@ -100,12 +109,15 @@ impl fmt::Display for Instr {
             }
             Instr::Return => write!(f, "return"),
             Instr::Unreachable => write!(f, "unreachable"),
-            Instr::Call(i) => write!(f, "call ${i}"),
-            Instr::CallRef(i) => write!(f, "call_ref ${i}"),
-            Instr::ReturnCall(i) => write!(f, "return_call ${i}"),
-            Instr::ReturnCallRef(i) => write!(f, "return_call_ref ${i}"),
+            Instr::Call(i) => write!(f, "call {i}"),
+            Instr::CallRef(i) => write!(f, "call_ref {i}"),
+            Instr::CallIndirect { type_index, .. } => {
+                write!(f, "call_indirect (type {type_index})")
+            }
+            Instr::ReturnCall(i) => write!(f, "return_call {i}"),
+            Instr::ReturnCallRef(i) => write!(f, "return_call_ref {i}"),
             Instr::RefFunc(i) => write!(f, "ref.func {i}"),
-            Instr::Throw(i) => write!(f, "throw ${i}"),
+            Instr::Throw(i) => write!(f, "throw {i}"),
             Instr::ExternConvertAny => write!(f, "extern.convert_any"),
             Instr::AnyConvertExtern => write!(f, "any.convert_extern"),
             Instr::Drop => write!(f, "drop"),

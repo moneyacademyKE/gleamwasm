@@ -9,7 +9,10 @@ pub struct Module {
     pub functions: Vec<Function>,
     pub exports: Vec<Export>,
     pub memories: Vec<Memory>,
+    pub tables: Vec<Table>,
     pub globals: Vec<Global>,
+    pub elements: Vec<ElementSegment>,
+    pub data: Vec<DataSegment>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -94,7 +97,10 @@ impl Module {
             functions: Vec::new(),
             exports: Vec::new(),
             memories: Vec::new(),
+            tables: Vec::new(),
             globals: Vec::new(),
+            elements: Vec::new(),
+            data: Vec::new(),
         }
     }
 
@@ -124,4 +130,33 @@ impl Module {
         });
         index
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TableKind {
+    FuncRef,
+    ExternRef,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Table {
+    pub kind: TableKind,
+    pub min: u32,
+    pub max: Option<u32>,
+}
+
+/// Active element segment: function indices placed into table 0 at `offset`.
+/// MVP: active segments only (binary elem kind flag 0).
+#[derive(Debug, Clone, PartialEq)]
+pub struct ElementSegment {
+    pub offset: u32,
+    pub items: Vec<u32>,
+}
+
+/// Active data segment: raw bytes placed into memory 0 at `offset`.
+/// MVP: active segments only (binary data kind flag 0).
+#[derive(Debug, Clone, PartialEq)]
+pub struct DataSegment {
+    pub offset: u32,
+    pub bytes: Vec<u8>,
 }
