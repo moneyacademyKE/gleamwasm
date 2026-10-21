@@ -185,10 +185,10 @@ pub fn run_sidecar(input: &str) -> Result<String, String> {
     if let Ok(p) = std::env::var("GLEAMWASM_FRONTEND") {
         candidates.push(p.into());
     }
-    if let Ok(exe) = std::env::current_exe() {
-        if let Some(dir) = exe.parent() {
-            candidates.push(dir.join("gleamwasm-frontend"));
-        }
+    if let Ok(exe) = std::env::current_exe()
+        && let Some(dir) = exe.parent()
+    {
+        candidates.push(dir.join("gleamwasm-frontend"));
     }
     candidates.push("gleamwasm-frontend".into());
 

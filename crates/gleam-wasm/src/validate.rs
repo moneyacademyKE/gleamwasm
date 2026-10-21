@@ -106,10 +106,10 @@ pub fn validate_module(module: &Module, is_linear: bool) -> Result<(), Validatio
 
     // Validate table limits
     for t in &module.tables {
-        if let Some(max) = t.max {
-            if max < t.min {
-                return Err(ValidationError::InvalidTableLimits { min: t.min, max });
-            }
+        if let Some(max) = t.max
+            && max < t.min
+        {
+            return Err(ValidationError::InvalidTableLimits { min: t.min, max });
         }
     }
 
