@@ -8,13 +8,9 @@ license = "Apache-2.0"
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 wast = "59"
-gleam-core = { git = "https://github.com/gleam-lang/gleam", tag = "v1.18.1", optional = true }
-camino = { version = "1", optional = true }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 
 [dev-dependencies]
 insta = "1"
 proptest = "1"
-
-[features]
-default = []
-gleam-frontend = ["dep:gleam-core", "dep:camino"]

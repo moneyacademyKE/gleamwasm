@@ -1127,11 +1127,11 @@ dependencies = [
 name = "gleam-wasm"
 version = "0.2.0"
 dependencies = [
- "camino",
  "clap",
- "gleam-core",
  "insta",
  "proptest",
+ "serde",
+ "serde_json",
  "wast",
 ]
 
