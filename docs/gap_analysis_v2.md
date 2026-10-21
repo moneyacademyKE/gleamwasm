@@ -62,3 +62,37 @@ This gap analysis systematically identifies the remaining gaps between the curre
 4. ~~**Draft Native List Codegen:**~~ ✅ — `TypedExpr::ListCons`/`ListNil` with GC struct subtyping and linear Cons cell builtins.
 5. ~~**Wasm Exception Handling:**~~ ✅ — `TypedExpr::Panic` compiles to `throw` with `$ExnTag` struct type.
 6. **BEAM Concurrency Model:** Remain single-threaded. Worker pool emulation is the most viable path for future BEAM parity.
+
+---
+
+## 5. Spike: gleam-core frontend cost measurement (ADR-001 input, 2026-10-21)
+
+Measured behind the `gleam-frontend` feature flag (`gleam-core` git dep, tag `v1.18.1`,
+rev `4a83802`; throwaway example: `examples/spike_frontend.rs`).
+
+| Measurement | Value |
+|---|---|
+| Default build (flag off) | exit 0 |
+| Normal dep tree (flag off) | **30 crates** — unchanged ✓ |
+| Normal dep tree (flag on) | **636 crates** (~21×) |
+| Toolchain floor | stable 1.97.0 works for v1.18.1 only; gleam ≥ v1.19.0 uses unstable `Option::map_or_default` (rust-lang#138099) → needs a newer stable |
+| Supply-chain pin required | `cargo update -p ecow --precise 0.2.6` (gleam workspace declares `ecow = "0"` wildcard; ecow ≥ 0.3.0 adds ambiguous `AsRef`/`From` impls → 4× E0283 in gleam-core) |
+| License | Apache-2.0 — compatible ✓ |
+| Parser standalone | ✓ `parse_module(path, src, &WarningEmitter::null()) -> Parsed { module: UntypedModule, extra }` — ran on `pub fn main() { 42 }`, correct AST |
+| Typed AST standalone | ✗ `TypedExpr` (ast/typed.rs) requires full package-analysis scaffolding: module analyzer, package interfaces, stdlib resolution. Parse layer yields untyped AST only (`return_type: ()` placeholder pre-inference). |
+| Cold flag-on build time | not cleanly measured (session hit run caps); gleam-core alone compiles in minutes, full 636-crate cold build longer |
+
+### TypedExpr variant survey
+
+| gleam-core (27) | gleam-wasm (16) |
+|---|---|
+| Int Float String Block Pipeline Var Fn List Call BinOp Case RecordAccess PositionalAccess ModuleSelect Tuple TupleIndex Todo Panic Echo BitArray RecordUpdate NegateBool NegateInt Invalid | Int Float Bool Nil Var BinOp Call CallClosure TailCall If Let Closure StructNew StructGet Match Tuple TupleGet |
+
+Mapping notes:
+- ~12 variants map directly (Int/Float/String/Var/Call/BinOp/Fn↔Closure/Case↔Match/Tuple/TupleIndex↔TupleGet/List/Block).
+- Gleam `True`/`False`/`Nil` are **constructors** (Var/ModuleSelect), not literals — our Bool/Nil are a lowering target, not a source shape.
+- `Pipeline` (|>) arrives pre-desugar in typed AST; `Echo`, `RecordUpdate`, `BitArray`, `Todo`, `Panic` have no counterpart in our emitter yet.
+- Their nodes carry spans, EcoString, purity, and per-target implementation flags — all surplus to our codegen but free to ignore.
+
+Verdict input for ADR-001: Option A imports a **product**, not a library — wildcard deps,
+toolchain treadmill, and the typed pipeline assumes you are building a whole Gleam package.
