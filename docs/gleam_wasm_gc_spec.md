@@ -8,20 +8,20 @@ This specification defines the product requirements, design guidelines, type map
 
 To maintain modularity and comply with the codebase line limit guidelines (<250 lines per file), the specification is divided into the following dedicated sections:
 
-1. **[Vision & Architecture](file:///Users/moe/Desktop/gleamwasm/docs/spec_vision_architecture.md)**
+1. **[Vision & Architecture](spec_vision_architecture.md)**
    * Core design goals (no custom GC runtime, lightweight binaries).
    * High-level compiler flow and Rust-based toolchain integration.
-2. **[Type Mapping Specification](file:///Users/moe/Desktop/gleamwasm/docs/spec_type_mapping.md)**
+2. **[Type Mapping Specification](spec_type_mapping.md)**
    * Compilation of Gleam primitives (Int, Float, Bool, Nil).
    * Representation of Algebraic Data Types (ADTs) using Wasm GC subtyping.
    * Closure and function compilation patterns.
-3. **[Host FFI & String Representation](file:///Users/moe/Desktop/gleamwasm/docs/spec_ffi_interop.md)**
+3. **[Host FFI & String Representation](spec_ffi_interop.md)**
    * JS String Builtins (`wasm:js-string`) vs. WASI Byte Array strings.
    * Foreign Function Interface (FFI) bindings using `externref`.
-4. **[Roadmap & Verification Plan](file:///Users/moe/Desktop/gleamwasm/docs/spec_verification_roadmap.md)**
+4. **[Roadmap & Verification Plan](spec_verification_roadmap.md)**
    * Integration testing harness using Red/Green TDD.
    * Binary size optimizations (`wasm-opt`) and performance targets.
-5. **[Remaining Gaps Analysis (v2)](file:///Users/moe/Desktop/gleamwasm/docs/gap_analysis_v2.md)**
+5. **[Remaining Gaps Analysis (v2)](gap_analysis_v2.md)**
    * Evaluates closure dispatch, linear memory GC, source parser integration, and concurrency emulation.
 
 ---
