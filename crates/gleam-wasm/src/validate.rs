@@ -36,6 +36,24 @@ pub enum ValidationError {
     GcInstructionInLinearModule { function: String, instr: String },
     /// A compare instruction receives an unreasonable branch depth.
     UnreasonableBranchDepth { function: String, depth: u32 },
+    /// A call_indirect references a non-existent or non-func type.
+    InvalidCallIndirectType { function: String, type_index: u32 },
+    /// A call_indirect references a table that doesn't exist.
+    InvalidTableIndex {
+        function: String,
+        table_index: u32,
+        max: u32,
+    },
+    /// An element segment item references a non-existent function.
+    InvalidElemFuncIndex { index: u32, max: u32 },
+    /// A table's max is smaller than its min.
+    InvalidTableLimits { min: u32, max: u32 },
+    /// A data segment doesn't fit in the declared memory.
+    DataSegmentOutOfMemory {
+        offset: u32,
+        len: u32,
+        memory_bytes: u32,
+    },
 }
 
 /// Validate a module before emission. Returns Ok(()) or the first error found.
@@ -86,6 +104,41 @@ pub fn validate_module(module: &Module, is_linear: bool) -> Result<(), Validatio
         }
     }
 
+    // Validate table limits
+    for t in &module.tables {
+        if let Some(max) = t.max {
+            if max < t.min {
+                return Err(ValidationError::InvalidTableLimits { min: t.min, max });
+            }
+        }
+    }
+
+    // Validate element segments reference existing functions
+    for seg in &module.elements {
+        for &idx in &seg.items {
+            if idx >= total_func_space {
+                return Err(ValidationError::InvalidElemFuncIndex {
+                    index: idx,
+                    max: total_func_space,
+                });
+            }
+        }
+    }
+
+    // Validate data segments fit in the declared memory
+    if let Some(mem) = module.memories.first() {
+        let memory_bytes = mem.min.saturating_mul(65_536);
+        for seg in &module.data {
+            if seg.offset.saturating_add(seg.bytes.len() as u32) > memory_bytes {
+                return Err(ValidationError::DataSegmentOutOfMemory {
+                    offset: seg.offset,
+                    len: seg.bytes.len() as u32,
+                    memory_bytes,
+                });
+            }
+        }
+    }
+
     Ok(())
 }
 
@@ -121,6 +174,28 @@ fn validate_instr_slice(
             Instr::CallRef(i) | Instr::ReturnCallRef(i) => {
                 if *i >= module.types.len() as u32 {
                     return Err(ValidationError::InvalidTypeIndex(*i));
+                }
+            }
+            Instr::CallIndirect {
+                type_index,
+                table_index,
+            } => {
+                let type_ok = module
+                    .types
+                    .get(*type_index as usize)
+                    .is_some_and(|td| matches!(td.kind, TypeDefKind::Func(..)));
+                if !type_ok {
+                    return Err(ValidationError::InvalidCallIndirectType {
+                        function: func_name.to_string(),
+                        type_index: *type_index,
+                    });
+                }
+                if *table_index >= module.tables.len() as u32 {
+                    return Err(ValidationError::InvalidTableIndex {
+                        function: func_name.to_string(),
+                        table_index: *table_index,
+                        max: module.tables.len() as u32,
+                    });
                 }
             }
             Instr::StructNew(i)
@@ -322,5 +397,87 @@ mod tests {
 
         let err = validate_module(&module, false).unwrap_err();
         assert!(matches!(err, ValidationError::InvalidBranch { .. }));
+    }
+
+    use crate::ir::module::{DataSegment, ElementSegment, Memory, Table, TableKind};
+    use crate::ir::types::{Instr, Local, ValType};
+
+    fn table_fixture() -> Module {
+        let mut m = Module::new();
+        let ty = m.add_func_type(FuncType {
+            params: vec![ValType::I64],
+            results: vec![ValType::I64],
+        });
+        m.functions.push(Function {
+            name: Some("$double".into()),
+            type_index: ty,
+            locals: vec![Local::param("$x", ValType::I64)],
+            body: vec![Instr::LocalGet(0), Instr::I64Const(2), Instr::I64Mul],
+        });
+        m.tables.push(Table {
+            kind: TableKind::FuncRef,
+            min: 1,
+            max: None,
+        });
+        m.elements.push(ElementSegment {
+            offset: 0,
+            items: vec![0],
+        });
+        m
+    }
+
+    #[test]
+    fn test_validate_table_elem_ok() {
+        assert!(validate_module(&table_fixture(), true).is_ok());
+    }
+
+    #[test]
+    fn test_validate_rejects_bad_table_limits() {
+        let mut m = table_fixture();
+        m.tables[0].min = 5;
+        m.tables[0].max = Some(1);
+        assert!(matches!(
+            validate_module(&m, true),
+            Err(ValidationError::InvalidTableLimits { .. })
+        ));
+    }
+
+    #[test]
+    fn test_validate_rejects_elem_out_of_range() {
+        let mut m = table_fixture();
+        m.elements[0].items = vec![7];
+        assert!(matches!(
+            validate_module(&m, true),
+            Err(ValidationError::InvalidElemFuncIndex { .. })
+        ));
+    }
+
+    #[test]
+    fn test_validate_rejects_data_out_of_memory() {
+        let mut m = table_fixture();
+        m.memories.push(Memory { min: 1, max: None });
+        m.data.push(DataSegment {
+            offset: 65_536,
+            bytes: vec![1, 2, 3],
+        });
+        assert!(matches!(
+            validate_module(&m, true),
+            Err(ValidationError::DataSegmentOutOfMemory { .. })
+        ));
+    }
+
+    #[test]
+    fn test_validate_rejects_call_indirect_bad_type() {
+        let mut m = table_fixture();
+        m.functions[0]
+            .body
+            .push(Instr::CallIndirect {
+                type_index: 99,
+                table_index: 0,
+            });
+        assert!(matches!(
+            validate_module(&m, true),
+            Err(ValidationError::InvalidCallIndirectType { .. })
+        ));
     }
 }

@@ -2,7 +2,7 @@ use crate::ir::module::*;
 
 mod encoder;
 
-use encoder::{encode_function_body, encode_instr, encode_u32, encode_valtype};
+use encoder::{encode_function_body, encode_instr, encode_sleb128, encode_u32, encode_valtype};
 
 /// Emit binary WASM. For linear modules (no GC types), round-trips through
 /// the wast crate's built-in binary encoder which produces spec-valid output.
@@ -42,7 +42,10 @@ fn encode_module(module: &Module) -> Vec<u8> {
     encode_manual(module)
 }
 
-fn encode_manual(module: &Module) -> Vec<u8> {
+/// Hand-rolled binary encoder: the primary path for GC modules and the
+/// fallback when the wast round-trip fails. Public for property-based
+/// fuzzing (tests/fuzz.rs validates its output with wasmparser).
+pub fn encode_manual(module: &Module) -> Vec<u8> {
     let mut buf = Vec::new();
 
     // Magic + version
@@ -111,6 +114,27 @@ fn encode_manual(module: &Module) -> Vec<u8> {
         });
     }
 
+    // --- Table section (id=4) ---
+    if !module.tables.is_empty() {
+        encode_section(&mut buf, 4, |buf| {
+            encode_u32(buf, module.tables.len() as u32);
+            for t in &module.tables {
+                buf.push(match t.kind {
+                    TableKind::FuncRef => 0x70,
+                    TableKind::ExternRef => 0x6F,
+                });
+                if let Some(max) = t.max {
+                    buf.push(0x01); // limits: max present
+                    encode_u32(buf, t.min);
+                    encode_u32(buf, max);
+                } else {
+                    buf.push(0x00); // limits: no max
+                    encode_u32(buf, t.min);
+                }
+            }
+        });
+    }
+
     // --- Memory section (id=5) ---
     if !module.memories.is_empty() {
         encode_section(&mut buf, 5, |buf| {
@@ -158,6 +182,23 @@ fn encode_manual(module: &Module) -> Vec<u8> {
         });
     }
 
+    // --- Element section (id=9) ---
+    if !module.elements.is_empty() {
+        encode_section(&mut buf, 9, |buf| {
+            encode_u32(buf, module.elements.len() as u32);
+            for seg in &module.elements {
+                encode_u32(buf, 0); // flags 0: active, table 0, vec(funcidx)
+                buf.push(0x41); // i32.const (offset expr)
+                encode_sleb128(buf, seg.offset as i64);
+                buf.push(0x0b); // end
+                encode_u32(buf, seg.items.len() as u32);
+                for idx in &seg.items {
+                    encode_u32(buf, *idx);
+                }
+            }
+        });
+    }
+
     // --- Code section (id=10) ---
     if !module.functions.is_empty() {
         encode_section(&mut buf, 10, |buf| {
@@ -166,6 +207,21 @@ fn encode_manual(module: &Module) -> Vec<u8> {
                 let body = encode_function_body(func);
                 encode_u32(buf, body.len() as u32);
                 buf.extend_from_slice(&body);
+            }
+        });
+    }
+
+    // --- Data section (id=11) ---
+    if !module.data.is_empty() {
+        encode_section(&mut buf, 11, |buf| {
+            encode_u32(buf, module.data.len() as u32);
+            for seg in &module.data {
+                encode_u32(buf, 0); // flags 0: active, memory 0
+                buf.push(0x41); // i32.const (offset expr)
+                encode_sleb128(buf, seg.offset as i64);
+                buf.push(0x0b); // end
+                encode_u32(buf, seg.bytes.len() as u32);
+                buf.extend_from_slice(&seg.bytes);
             }
         });
     }

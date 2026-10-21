@@ -111,6 +111,9 @@ impl fmt::Display for Instr {
             Instr::Unreachable => write!(f, "unreachable"),
             Instr::Call(i) => write!(f, "call {i}"),
             Instr::CallRef(i) => write!(f, "call_ref {i}"),
+            Instr::CallIndirect { type_index, .. } => {
+                write!(f, "call_indirect (type {type_index})")
+            }
             Instr::ReturnCall(i) => write!(f, "return_call {i}"),
             Instr::ReturnCallRef(i) => write!(f, "return_call_ref {i}"),
             Instr::RefFunc(i) => write!(f, "ref.func {i}"),

@@ -83,6 +83,9 @@ pub enum Instr {
     Unreachable,
     Call(u32),
     CallRef(u32),
+    /// `call_indirect (type N)`: pops an i32 table index, calls the funcref
+    /// at that slot with signature N. MVP: `table_index` must be 0.
+    CallIndirect { type_index: u32, table_index: u32 },
     ReturnCall(u32),
     ReturnCallRef(u32),
     RefFunc(u32),

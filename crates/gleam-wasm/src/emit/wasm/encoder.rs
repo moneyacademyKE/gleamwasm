@@ -147,6 +147,14 @@ pub(super) fn encode_instr(buf: &mut Vec<u8>, instr: &Instr) {
             buf.push(0x10);
             encode_u32(buf, *i);
         }
+        Instr::CallIndirect {
+            type_index,
+            table_index,
+        } => {
+            buf.push(0x11);
+            encode_u32(buf, *type_index);
+            encode_u32(buf, *table_index);
+        }
         Instr::ReturnCall(i) => {
             buf.push(0x12);
             encode_u32(buf, *i);
@@ -309,7 +317,7 @@ fn encode_i32(buf: &mut Vec<u8>, v: i32) {
     encode_sleb128(buf, v as i64);
 }
 
-fn encode_sleb128(buf: &mut Vec<u8>, v: i64) {
+pub(super) fn encode_sleb128(buf: &mut Vec<u8>, v: i64) {
     let mut n = v;
     loop {
         let mut byte = (n & 0x7f) as u8;

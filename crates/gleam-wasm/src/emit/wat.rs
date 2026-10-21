@@ -17,6 +17,18 @@ pub fn emit_wat(module: &Module) -> String {
         out.push_str("  (export \"memory\" (memory 0))\n");
     }
 
+    for table in &module.tables {
+        let kind = match table.kind {
+            TableKind::FuncRef => "funcref",
+            TableKind::ExternRef => "externref",
+        };
+        out.push_str(&format!("  (table {}", table.min));
+        if let Some(max) = table.max {
+            out.push_str(&format!(" {max}"));
+        }
+        out.push_str(&format!(" {kind})\n"));
+    }
+
     for global in &module.globals {
         let mut_str = if global.type_.mutable { " (mut " } else { " (" };
         out.push_str(&format!("  (global{}{})", mut_str, global.type_.val_type));
@@ -31,6 +43,25 @@ pub fn emit_wat(module: &Module) -> String {
 
     for func in &module.functions {
         emit_function(&mut out, func, &module.types);
+    }
+
+    for seg in &module.elements {
+        out.push_str(&format!("  (elem (i32.const {})", seg.offset));
+        if !seg.items.is_empty() {
+            out.push_str(" func");
+            for idx in &seg.items {
+                out.push_str(&format!(" {idx}"));
+            }
+        }
+        out.push_str(")\n");
+    }
+
+    for seg in &module.data {
+        out.push_str(&format!(
+            "  (data (i32.const {}) \"{}\")\n",
+            seg.offset,
+            wat_data_string(&seg.bytes)
+        ));
     }
 
     emit_exports(&mut out, &module.exports);
@@ -173,4 +204,19 @@ fn emit_function(out: &mut String, func: &Function, types: &[TypeDef]) {
     }
 
     out.push_str("  )\n");
+}
+
+/// Escape raw bytes as a WAT string literal body: printable ASCII verbatim
+/// (except `"` and `\`), everything else as `\xx` hex escapes.
+fn wat_data_string(bytes: &[u8]) -> String {
+    let mut s = String::new();
+    for b in bytes {
+        match b {
+            b'"' => s.push_str("\\\""),
+            b'\\' => s.push_str("\\\\"),
+            0x20..=0x7e => s.push(*b as char),
+            _ => s.push_str(&format!("\\{b:02x}")),
+        }
+    }
+    s
 }
