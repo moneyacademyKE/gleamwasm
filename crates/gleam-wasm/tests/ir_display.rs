@@ -20,24 +20,24 @@ fn test_instr_display_f64() {
 
 #[test]
 fn test_instr_display_gc_ops() {
-    assert_eq!(Instr::StructNew(0).to_string(), "struct.new $0");
+    assert_eq!(Instr::StructNew(0).to_string(), "struct.new 0");
     assert_eq!(
         Instr::StructGet {
             type_index: 1,
             field_index: 0
         }
         .to_string(),
-        "struct.get $1 $f0"
+        "struct.get 1 0"
     );
 }
 
 #[test]
 fn test_instr_display_control_flow() {
     assert_eq!(Instr::Return.to_string(), "return");
-    assert_eq!(Instr::Call(3).to_string(), "call $3");
-    assert_eq!(Instr::CallRef(2).to_string(), "call_ref $2");
-    assert_eq!(Instr::ReturnCall(1).to_string(), "return_call $1");
-    assert_eq!(Instr::ReturnCallRef(0).to_string(), "return_call_ref $0");
+    assert_eq!(Instr::Call(3).to_string(), "call 3");
+    assert_eq!(Instr::CallRef(2).to_string(), "call_ref 2");
+    assert_eq!(Instr::ReturnCall(1).to_string(), "return_call 1");
+    assert_eq!(Instr::ReturnCallRef(0).to_string(), "return_call_ref 0");
     assert_eq!(Instr::Drop.to_string(), "drop");
 }
 

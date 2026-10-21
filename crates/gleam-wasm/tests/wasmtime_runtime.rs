@@ -102,7 +102,9 @@ fn make_factorial_module() -> String {
             Instr::I64Const(1),
             Instr::I64LeS,
             Instr::If {
-                then_branch: Box::new(Block::new(vec![Instr::I64Const(1)], None).label("base")),
+                then_branch: Box::new(
+                    Block::new(vec![Instr::I64Const(1)], Some(ValType::I64)).label("base"),
+                ),
                 else_branch: Some(Box::new(
                     Block::new(
                         vec![
@@ -113,7 +115,7 @@ fn make_factorial_module() -> String {
                             Instr::Call(0),
                             Instr::I64Mul,
                         ],
-                        None,
+                        Some(ValType::I64),
                     )
                     .label("recurse"),
                 )),

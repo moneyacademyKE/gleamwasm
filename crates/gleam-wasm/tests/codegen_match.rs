@@ -51,7 +51,7 @@ fn test_compile_match_two_variant_adt() {
         "expected ref.test for dispatch"
     );
     assert!(
-        joined.contains("struct.get $1 $f0"),
+        joined.contains("struct.get 1 0"),
         "expected struct.get for Some field"
     );
 }
@@ -114,9 +114,9 @@ fn test_compile_shape_match() {
     println!("{joined}");
 
     assert!(joined.contains("ref.test"));
-    assert!(joined.contains("struct.get $1 $f0"), "Circle radius field");
-    assert!(joined.contains("struct.get $2 $f0"), "Rect width field");
-    assert!(joined.contains("struct.get $2 $f1"), "Rect height field");
+    assert!(joined.contains("struct.get 1 0"), "Circle radius field");
+    assert!(joined.contains("struct.get 2 0"), "Rect width field");
+    assert!(joined.contains("struct.get 2 1"), "Rect height field");
 }
 
 #[test]
@@ -164,6 +164,6 @@ fn test_compile_list_cons_deconstruction() {
     println!("{joined}");
 
     assert!(joined.contains("ref.test"));
-    assert!(joined.contains("struct.get $1 $f0"), "Cons head");
-    assert!(joined.contains("struct.get $1 $f1"), "Cons tail");
+    assert!(joined.contains("struct.get 1 0"), "Cons head");
+    assert!(joined.contains("struct.get 1 1"), "Cons tail");
 }

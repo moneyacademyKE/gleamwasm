@@ -92,11 +92,11 @@ fn test_result_ok_err_codegen() {
     let joined = output.join("\n");
 
     assert!(joined.contains("ref.test"));
-    assert!(joined.contains("struct.get $1 $f0"), "Ok field");
-    assert!(joined.contains("struct.get $2 $f0"), "Err field");
+    assert!(joined.contains("struct.get 1 0"), "Ok field");
+    assert!(joined.contains("struct.get 2 0"), "Err field");
     assert!(
-        joined.contains("return_call $0"),
+        joined.contains("return_call 0"),
         "tail call handle_success"
     );
-    assert!(joined.contains("call $1"), "call handle_error");
+    assert!(joined.contains("call 1"), "call handle_error");
 }

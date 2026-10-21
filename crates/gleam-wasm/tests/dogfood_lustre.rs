@@ -67,7 +67,7 @@ fn test_lustre_update_match_action() {
     println!("{joined}");
 
     assert!(joined.contains("ref.test"));
-    assert!(joined.contains("struct.get $1 $f0") || joined.contains("unreachable"));
+    assert!(joined.contains("struct.get 1 0") || joined.contains("unreachable"));
 }
 
 #[test]

@@ -30,7 +30,7 @@ pub fn emit_wat(module: &Module) -> String {
     }
 
     for func in &module.functions {
-        emit_function(&mut out, func);
+        emit_function(&mut out, func, &module.types);
     }
 
     emit_exports(&mut out, &module.exports);
@@ -121,7 +121,7 @@ fn emit_exports(out: &mut String, exports: &[Export]) {
     }
 }
 
-fn emit_function(out: &mut String, func: &Function) {
+fn emit_function(out: &mut String, func: &Function, types: &[TypeDef]) {
     out.push_str("  (func");
     if let Some(ref name) = func.name {
         out.push_str(&format!(" {name}"));
@@ -144,6 +144,19 @@ fn emit_function(out: &mut String, func: &Function) {
         if let LocalKind::Param(t) = &local.kind {
             let name = local.name.as_deref().unwrap_or("$param");
             out.push_str(&format!("    (param {name} {t})\n"));
+        }
+    }
+
+    // Inline results must match the `(type N)` reference exactly: WAT rejects
+    // a partial inline signature ("inline function type doesn't match type
+    // reference").
+    if let Some(TypeDef {
+        kind: TypeDefKind::Func(ft),
+        ..
+    }) = types.get(func.type_index as usize)
+    {
+        for r in &ft.results {
+            out.push_str(&format!("    (result {r})\n"));
         }
     }
 

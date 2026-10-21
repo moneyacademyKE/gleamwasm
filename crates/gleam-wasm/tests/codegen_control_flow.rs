@@ -93,7 +93,7 @@ fn test_tail_recursive_factorial_wat() {
     let wat = emit_wat(mapper.module());
     println!("{wat}");
 
-    assert!(wat.contains("return_call $0"));
+    assert!(wat.contains("return_call 0"));
     assert!(wat.contains("i64.sub"));
     assert!(wat.contains("i64.mul"));
     assert!(wat.contains("i64.le_s"));
@@ -175,7 +175,7 @@ fn test_inter_function_call_uses_registered_index() {
     };
 
     let output = compile_module_with_opt(&module_def, gleam_wasm::Target::WasmWeb);
-    assert!(output.wat.contains("call $1"), "{}", output.wat);
+    assert!(output.wat.contains("call 1"), "{}", output.wat);
 }
 
 #[test]
