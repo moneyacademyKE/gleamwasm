@@ -19,6 +19,7 @@
     i32.const 0 )
   (func $alloc (type 0)
     (param $size i32)
+    (result i32)
     (local $ptr i32)
     (local $head i32)
     block
@@ -68,35 +69,30 @@ end
     i32.const 8
     i32.eq
     if
-then
-  local.get 0
-  global.get 1
-  i32.store offset=0 align=2
-  local.get 0
-  global.set 1
+local.get 0
+global.get 1
+i32.store offset=0 align=2
+local.get 0
+global.set 1
 end
-end
-
     local.get 1
     i32.const 12
     i32.eq
     if
-then
-  local.get 0
-  global.get 2
-  i32.store offset=0 align=2
-  local.get 0
-  global.set 2
+local.get 0
+global.get 2
+i32.store offset=0 align=2
+local.get 0
+global.set 2
 end
-end
-
   )
   (func $make_tagged (type 2)
     (param $tag i32)
     (param $payload i32)
+    (result i32)
     (local $ret i32)
     i32.const 8
-    call $0
+    call 0
     local.tee 2
     local.get 0
     i32.store offset=0 align=2
@@ -107,25 +103,29 @@ end
   )
   (func $get_tag (type 3)
     (param $ptr i32)
+    (result i32)
     local.get 0
     i32.load offset=0 align=2
   )
   (func $get_payload (type 4)
     (param $ptr i32)
+    (result i32)
     local.get 0
     i32.load offset=4 align=2
   )
   (func $nil (type 5)
+    (result i32)
     i32.const 3
     i32.const 0
-    call $2
+    call 2
   )
   (func $cons (type 6)
     (param $head i32)
     (param $tail i32)
+    (result i32)
     (local $ptr i32)
     i32.const 12
-    call $0
+    call 0
     local.tee 2
     i32.const 4
     i32.store offset=0 align=2
@@ -139,16 +139,19 @@ end
   )
   (func $list_get_head (type 7)
     (param $ptr i32)
+    (result i32)
     local.get 0
     i32.load offset=4 align=2
   )
   (func $list_get_tail (type 8)
     (param $ptr i32)
+    (result i32)
     local.get 0
     i32.load offset=8 align=2
   )
   (func update (type 9)
     (param state i32)
+    (result i32)
     (local $tmp0 i32)
     (local $tmp1 i32)
     (local $tmp2 i32)

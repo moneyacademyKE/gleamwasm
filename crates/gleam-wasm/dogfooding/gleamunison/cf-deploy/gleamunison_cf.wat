@@ -40,6 +40,7 @@
     i32.const 8 )
   (func $alloc (type 12)
     (param $size i32)
+    (result i32)
     (local $ptr i32)
     global.get 0
     local.tee 1
@@ -51,9 +52,10 @@
   (func $make_tagged (type 13)
     (param $tag i32)
     (param $payload i32)
+    (result i32)
     (local $ret i32)
     i32.const 8
-    call $12
+    call 12
     local.tee 2
     local.get 0
     i32.store offset=0 align=2
@@ -64,30 +66,35 @@
   )
   (func $get_tag (type 14)
     (param $ptr i32)
+    (result i32)
     local.get 0
     i32.load offset=0 align=2
   )
   (func $get_payload (type 15)
     (param $ptr i32)
+    (result i32)
     local.get 0
     i32.load offset=4 align=2
   )
   (func $hash_bytes (type 16)
     (param $ptr i32)
     (param $len i32)
+    (result i32)
     local.get 0
     local.get 1
-    call $0
+    call 0
   )
   (func $hex_to_bytes (type 17)
     (param $ptr i32)
     (param $len i32)
+    (result i32)
     local.get 0
     local.get 1
-    call $1
+    call 1
   )
   (func local_var_index (type 18)
     (param lv i32)
+    (result i32)
     (local $tmp0 i32)
     (local $tmp1 i32)
     (local $tmp2 i32)
@@ -99,6 +106,7 @@
   (func range (type 19)
     (param start i32)
     (param end i32)
+    (result i32)
     (local $tmp0 i32)
     (local $tmp1 i32)
     (local $tmp2 i32)
@@ -114,18 +122,15 @@
     i32.gt_s
     i32.const 0
     i32.ne
-    if (result i32)
-then $then (result i32)
-  i32.const 0
+    if $then (result i32)
+i32.const 0
+else
+local.get 0
 end
-else $else (result i32)
-  local.get 0
-end
-end
-
   )
   (func hash (type 20)
     (param n i32)
+    (result i32)
     (local $tmp0 i32)
     (local $tmp1 i32)
     (local $tmp2 i32)
@@ -141,6 +146,7 @@ end
     i32.mul
   )
   (func level1 (type 21)
+    (result i32)
     (local $tmp0 i32)
     (local $tmp1 i32)
     (local $tmp2 i32)
@@ -156,18 +162,15 @@ end
     i32.lt_s
     i32.const 0
     i32.ne
-    if (result i32)
-then $then (result i32)
-  i32.const 100
+    if $then (result i32)
+i32.const 100
+else
+i32.const 0
 end
-else $else (result i32)
-  i32.const 0
-end
-end
-
   )
   (func state_demo (type 22)
     (param val i32)
+    (result i32)
     (local $tmp0 i32)
     (local $tmp1 i32)
     (local $tmp2 i32)

@@ -27,6 +27,7 @@
     i32.const 256 )
   (func $alloc (type 0)
     (param $size i32)
+    (result i32)
     (local $ptr i32)
     global.get 0
     local.tee 1
@@ -38,9 +39,10 @@
   (func $make_tagged (type 1)
     (param $tag i32)
     (param $payload i32)
+    (result i32)
     (local $ret i32)
     i32.const 8
-    call $0
+    call 0
     local.tee 2
     local.get 0
     i32.store offset=0 align=2
@@ -51,17 +53,20 @@
   )
   (func $get_tag (type 2)
     (param $ptr i32)
+    (result i32)
     local.get 0
     i32.load offset=0 align=2
   )
   (func $get_payload (type 3)
     (param $ptr i32)
+    (result i32)
     local.get 0
     i32.load offset=4 align=2
   )
   (func $hash_bytes (type 4)
     (param $data i32)
     (param $len i32)
+    (result i32)
     (local $hash i32)
     (local $i i32)
     (local $byte i32)
@@ -102,7 +107,7 @@
   br_if 0
 end
     i32.const 4
-    call $0
+    call 0
     local.tee 5
     local.get 2
     i32.store offset=0 align=2
@@ -111,6 +116,7 @@ end
   (func $hex_to_bytes (type 5)
     (param $ptr i32)
     (param $len i32)
+    (result i32)
     local.get 0
   )
   (func $hash_equal (type 6)
@@ -118,6 +124,7 @@ end
     (param $a_len i32)
     (param $b_ptr i32)
     (param $b_len i32)
+    (result i32)
     (local $i i32)
     block $check_len
   local.get 1
@@ -155,29 +162,28 @@ end
   (func $hash_to_hex (type 7)
     (param $ptr i32)
     (param $len i32)
+    (result i32)
     local.get 0
   )
   (func $state_get (type 8)
     (param $key_ptr i32)
     (param $key_len i32)
+    (result i32)
     (local $hash_val i32)
     (local $bucket i32)
     local.get 0
     local.get 1
-    call $4
+    call 4
     local.tee 2
     i32.load offset=0 align=2
     local.set 3
     local.get 3
     i32.const 0
     i32.eq
-    if (result i32)
-then $not_found (result i32)
-  i32.const 0
-  return
+    if $not_found (result i32)
+i32.const 0
+return
 end
-end
-
     local.get 3
   )
   (func $state_set (type 9)
@@ -185,19 +191,20 @@ end
     (param $key_len i32)
     (param $val_ptr i32)
     (param $val_len i32)
+    (result i32)
     (local $hash i32)
     (local $alloc_ptr i32)
     local.get 0
     local.get 1
-    call $4
+    call 4
     local.set 4
     local.get 3
-    call $0
+    call 0
     local.set 5
     local.get 5
     local.get 2
     local.get 3
-    call $16
+    call 16
     drop
     local.get 4
     i32.const 128
@@ -209,6 +216,7 @@ end
   (func $file_read (type 10)
     (param $path i32)
     (param $len i32)
+    (result i32)
     i32.const -1
   )
   (func $file_write (type 11)
@@ -216,25 +224,30 @@ end
     (param $path_len i32)
     (param $data i32)
     (param $data_len i32)
+    (result i32)
     i32.const 1
   )
   (func $log (type 12)
     (param $msg i32)
     (param $len i32)
+    (result i32)
     i32.const 1
   )
   (func $now_ms (type 13)
+    (result i64)
     i64.const 0
   )
   (func $timestamp (type 14)
+    (result i32)
     i32.const 0
   )
   (func $eval (type 15)
     (param $expr i32)
     (param $len i32)
+    (result i32)
     (local $ptr i32)
     i32.const 8
-    call $0
+    call 0
     local.tee 2
     local.get 0
     i32.store offset=0 align=2
@@ -244,6 +257,7 @@ end
     (param $dst i32)
     (param $src i32)
     (param $len i32)
+    (result i32)
     (local $i i32)
     i32.const 0
     local.set 3
@@ -268,6 +282,7 @@ end
   )
   (func local_var_index (type 17)
     (param lv i32)
+    (result i32)
     (local $tmp0 i32)
     (local $tmp1 i32)
     (local $tmp2 i32)
@@ -279,6 +294,7 @@ end
   (func range (type 18)
     (param start i32)
     (param end i32)
+    (result i32)
     (local $tmp0 i32)
     (local $tmp1 i32)
     (local $tmp2 i32)
@@ -294,18 +310,15 @@ end
     i32.gt_s
     i32.const 0
     i32.ne
-    if (result i32)
-then $then (result i32)
-  i32.const 0
+    if $then (result i32)
+i32.const 0
+else
+local.get 0
 end
-else $else (result i32)
-  local.get 0
-end
-end
-
   )
   (func hash (type 19)
     (param n i32)
+    (result i32)
     (local $tmp0 i32)
     (local $tmp1 i32)
     (local $tmp2 i32)
@@ -321,6 +334,7 @@ end
     i32.mul
   )
   (func level1 (type 20)
+    (result i32)
     (local $tmp0 i32)
     (local $tmp1 i32)
     (local $tmp2 i32)
@@ -336,18 +350,15 @@ end
     i32.lt_s
     i32.const 0
     i32.ne
-    if (result i32)
-then $then (result i32)
-  i32.const 100
+    if $then (result i32)
+i32.const 100
+else
+i32.const 0
 end
-else $else (result i32)
-  i32.const 0
-end
-end
-
   )
   (func state_demo (type 21)
     (param val i32)
+    (result i32)
     (local $tmp0 i32)
     (local $tmp1 i32)
     (local $tmp2 i32)
