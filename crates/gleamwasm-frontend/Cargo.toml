@@ -1,0 +1,15 @@
+[package]
+name = "gleamwasm-frontend"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+# ADR-001 Option A2: the gleam-core supply chain is quarantined in this
+# sidecar. gleam-wasm proper stays gleam-core-free (workspace
+# default-members excludes this crate from plain cargo build/test/CI).
+[dependencies]
+gleam-core = { git = "https://github.com/gleam-lang/gleam", tag = "v1.18.1" }
+camino = "1"
+im = "15"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

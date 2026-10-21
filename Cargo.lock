@@ -1136,6 +1136,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "gleamwasm-frontend"
+version = "0.1.0"
+dependencies = [
+ "camino",
+ "gleam-core",
+ "im",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "glob"
 version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
