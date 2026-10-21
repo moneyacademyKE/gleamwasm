@@ -1,6 +1,6 @@
 # ADR-001: Gleam frontend strategy
 
-- **Status:** PROPOSED — awaiting owner decision (plan step 8 gate)
+- **Status:** ACCEPTED — Option A2 chosen by owner (moe) 2026-10-21
 - **Date:** 2026-10-21
 - **Deciders:** moe (owner), OpenCrabs (analysis + spike)
 - **Evidence:** spike commit `77bdfb9`; numbers table in `docs/gap_analysis_v2.md` §5
@@ -93,5 +93,8 @@ A1 imports someone else's complected whole.
 
 ## Decision
 
-**PENDING — owner gate.** No implementation (plan task 9) starts until moe
-picks A1 / A2 / B.
+**ACCEPTED — Option A2 (sidecar extractor), chosen by moe 2026-10-21**
+("Go with A2 sidecar"). Implementation (plan task 9) proceeds under A2:
+quarantined workspace-member sidecar depending on gleam-core, versioned
+typed-AST JSON schema as the boundary, `gleam-wasm` default builds stay
+gleam-core-free via `default-members`.
