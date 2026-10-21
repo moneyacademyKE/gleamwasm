@@ -7,7 +7,19 @@ use encoder::{encode_function_body, encode_instr, encode_u32, encode_valtype};
 /// Emit binary WASM. For linear modules (no GC types), round-trips through
 /// the wast crate's built-in binary encoder which produces spec-valid output.
 /// Falls back to hand-rolled encoder for GC modules.
+///
+/// In-memory convenience wrapper over [`emit_wasm_to`] (GAP #5).
 pub fn emit_wasm(module: &Module) -> Vec<u8> {
+    encode_module(module)
+}
+
+/// Stream-oriented emitter (GAP #5): writes the binary module to any
+/// `std::io::Write` sink — file, socket, or in-memory cursor.
+pub fn emit_wasm_to(module: &Module, out: &mut dyn std::io::Write) -> std::io::Result<()> {
+    out.write_all(&encode_module(module))
+}
+
+fn encode_module(module: &Module) -> Vec<u8> {
     let has_gc = module
         .types
         .iter()
@@ -230,5 +242,30 @@ mod tests {
         buf.clear();
         encode_u32(&mut buf, 42);
         assert_eq!(buf, [0x2A]);
+    }
+
+    #[test]
+    fn test_emit_wasm_to_matches_vec_api() {
+        // GAP #5: the Write-sink variant must produce byte-identical output.
+        let mut module = Module::new();
+        let func_type = module.add_func_type(FuncType {
+            params: vec![],
+            results: vec![ValType::I64],
+        });
+        module.functions.push(Function {
+            name: Some("$answer".into()),
+            type_index: func_type,
+            locals: vec![],
+            body: vec![Instr::I64Const(42)],
+        });
+        module.exports.push(Export {
+            name: "answer".into(),
+            kind: ExportKind::Func(0),
+        });
+
+        let mut streamed: Vec<u8> = Vec::new();
+        emit_wasm_to(&module, &mut streamed).expect("write to Vec cannot fail");
+        assert_eq!(streamed, emit_wasm(&module));
+        assert_eq!(&streamed[0..4], b"\0asm");
     }
 }
